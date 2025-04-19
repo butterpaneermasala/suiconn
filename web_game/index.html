@@ -1,171 +1,561 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gem Collector Game with 3D Background</title>
+    <title>Degen FPS Duel</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
-            font-family: 'Arial', sans-serif;
-            color: white;
-        }
-        #gameContainer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            font-family: Arial;
         }
         #renderCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0;
+            touch-action: none;
         }
-        #gameCanvas {
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px black;
+            z-index: 100;
+        }
+        #healthBar {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0,0,0,0.5);
+            border: 2px solid white;
+            z-index: 100;
+        }
+        #healthFill {
+            height: 100%;
+            width: 100%;
+            background-color: #00ff00;
+            transition: width 0.3s;
+        }
+        #gameOver {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: transparent;
-            z-index: 1;
-            border: none;
-            box-shadow: none;
-        }
-        .game-header {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 10;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 10px 20px;
-            border-radius: 10px;
-            width: 80%;
-            max-width: 800px;
-            text-align: center;
-        }
-        .game-title {
-            color: gold;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-            margin: 0;
-            font-size: 24px;
-        }
-        .score-display {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            margin-top: 10px;
-            font-size: 18px;
-        }
-        .controls {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 10px;
-            z-index: 10;
-        }
-        .game-over {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
+            font-size: 48px;
+            text-shadow: 2px 2px 4px black;
+            z-index: 100;
             display: none;
-            border: 3px solid gold;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            z-index: 100;
-            max-width: 80vw;
+            text-align: center;
         }
-        button {
-            padding: 12px 25px;
-            font-size: 18px;
-            background-color: #4CAF50;
+        #restartBtn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 24px;
+            background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             cursor: pointer;
-            margin-top: 15px;
-            transition: all 0.3s;
-        }
-        button:hover {
-            background-color: #45a049;
-            transform: scale(1.05);
-        }
-        #loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
-            color: white;
-            z-index: 100;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 10px;
         }
     </style>
 </head>
 <body>
-    <div id="loading">Loading assets...</div>
-    
-    <div class="game-header">
-        <h1 class="game-title">🌟 Gem Collector Game 🌟</h1>
-        <div class="score-display">
-            <div>Player 1: <span id="score1">0</span> 💎</div>
-            <div>Player 2: <span id="score2">0</span> 💎</div>
-        </div>
+    <div id="ui">
+        Players: <span id="playerCount">1</span>
     </div>
-    
-    <div id="gameContainer">
-        <canvas id="renderCanvas"></canvas>
-        <canvas id="gameCanvas" width="1200" height="800"></canvas>
+    <div id="healthBar">
+        <div id="healthFill"></div>
     </div>
+    <div id="gameOver"></div>
+    <canvas id="renderCanvas"></canvas>
     
-    <div class="controls">
-        <p>Player 1: WASD to move, SPACE to jump | Player 2: Arrow keys to move, ENTER to jump</p>
-    </div>
-    
-    <div class="game-over" id="gameOver">
-        <h2>🎉 Game Over! 🎉</h2>
-        <p id="winnerText"></p>
-        <p id="finalScores"></p>
-        <button id="restartButton">Play Again</button>
-    </div>
-
-    <!-- Preload images -->
-    <div id="preload" style="display:none;">
-        <!-- Player spritesheets -->
-        <img src="sprites/player1/run.png" id="player1Sheet">
-        <img src="sprites/player2/standard/run.png" id="player2Sheet">
+    <script>
+        // Game variables
+        let playerId;
+        let players = {};
+        let bullets = {};
+        let socket;
+        let scene;
+        let engine;
+        let camera;
+        let myPlayer;
+        let isGameOver = false;
         
-        <!-- Gems and platform -->
-        <img src="sprites/red.png" id="redGem">
-        <img src="sprites/red.png" id="blueGem">
-        <img src="sprites/red.png" id="greenGem">
-        <img src="sprites/red.png" id="yellowGem">
-        <img src="sprites/platform.png" id="platform">
-    </div>
-
-    <!-- Load Babylon.js -->
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="game.js"></script>
+        // Connect to server
+        function connectToServer() {
+            socket = io('http://localhost:3000');
+            
+            socket.on('init', (data) => {
+                playerId = data.playerId;
+                players = data.players;
+                bullets = data.bullets;
+                initGame();
+            });
+            
+            socket.on('playerConnected', (playerData) => {
+                players[playerData.id] = playerData;
+                createPlayerModel(playerData.id, playerData);
+                updatePlayerCount();
+            });
+            
+            socket.on('playerMoved', (data) => {
+                if (players[data.id] && players[data.id].mesh) {
+                    players[data.id].mesh.position = new BABYLON.Vector3(data.x, data.y, data.z);
+                    players[data.id].mesh.rotation.y = data.rotation;
+                    
+                    // Update health bar position
+                    if (players[data.id].healthBar) {
+                        players[data.id].healthBar.position = new BABYLON.Vector3(data.x, data.y + 2, data.z);
+                    }
+                }
+            });
+            
+            socket.on('bulletFired', (bulletData) => {
+                bullets[bulletData.id] = bulletData;
+                createBullet(bulletData);
+            });
+            
+            socket.on('bulletRemoved', (bulletId) => {
+                if (bullets[bulletId] && bullets[bulletId].mesh) {
+                    bullets[bulletId].mesh.dispose();
+                    delete bullets[bulletId];
+                }
+            });
+            
+            socket.on('playerHit', (data) => {
+                if (players[data.playerId]) {
+                    players[data.playerId].health = data.health;
+                    
+                    if (data.playerId === playerId) {
+                        updateHealthDisplay();
+                    }
+                    
+                    if (players[data.playerId].healthBarMat) {
+                        updatePlayerHealthBar(data.playerId);
+                    }
+                }
+            });
+            
+            socket.on('playerDied', (id) => {
+                if (players[id] && players[id].mesh) {
+                    players[id].mesh.dispose();
+                    if (players[id].healthBar) {
+                        players[id].healthBar.dispose();
+                    }
+                    delete players[id];
+                    updatePlayerCount();
+                }
+            });
+            
+            socket.on('gameOver', (winnerId) => {
+                isGameOver = true;
+                const gameOverDiv = document.getElementById('gameOver');
+                gameOverDiv.style.display = 'block';
+                gameOverDiv.innerHTML = winnerId === playerId ? 
+                    "YOU WIN!<br><button id='restartBtn'>Play Again</button>" : 
+                    "YOU LOSE!<br><button id='restartBtn'>Play Again</button>";
+                
+                document.getElementById('restartBtn').addEventListener('click', restartGame);
+            });
+            
+            socket.on('playerDisconnected', (id) => {
+                if (players[id] && players[id].mesh) {
+                    players[id].mesh.dispose();
+                    if (players[id].healthBar) {
+                        players[id].healthBar.dispose();
+                    }
+                    delete players[id];
+                    updatePlayerCount();
+                }
+            });
+        }
+        
+        function updatePlayerCount() {
+            document.getElementById('playerCount').textContent = Object.keys(players).length;
+        }
+        
+        function updateHealthDisplay() {
+            const healthPercent = (players[playerId].health / 100) * 100;
+            document.getElementById('healthFill').style.width = `${healthPercent}%`;
+            
+            // Change color based on health
+            const healthFill = document.getElementById('healthFill');
+            if (healthPercent > 60) {
+                healthFill.style.backgroundColor = '#00ff00'; // Green
+            } else if (healthPercent > 30) {
+                healthFill.style.backgroundColor = '#ffff00'; // Yellow
+            } else {
+                healthFill.style.backgroundColor = '#ff0000'; // Red
+            }
+        }
+        
+        function updatePlayerHealthBar(id) {
+            if (players[id] && players[id].healthBarMat) {
+                const healthPercent = players[id].health / 100;
+                players[id].healthBarMat.emissiveColor = new BABYLON.Color3(
+                    1 - healthPercent,
+                    healthPercent,
+                    0
+                );
+                players[id].healthBar.scaling.x = healthPercent;
+            }
+        }
+        
+        function restartGame() {
+            // Reload the page to restart
+            location.reload();
+        }
+        
+        // Initialize Babylon.js game
+        function initGame() {
+            const canvas = document.getElementById("renderCanvas");
+            engine = new BABYLON.Engine(canvas, true);
+            
+            // Create scene
+            scene = new BABYLON.Scene(engine);
+            scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
+            scene.collisionsEnabled = true;
+            
+            // Camera - FIXED CONTROLS
+            camera = new BABYLON.FreeCamera("camera", new BABYLON.Vector3(0, 1.6, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.applyGravity = true;
+            camera.checkCollisions = true;
+            camera.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+            camera.ellipsoidOffset = new BABYLON.Vector3(0, 1, 0);
+            camera.speed = 0.2;
+            camera.angularSensibility = 5000;
+            camera.inertia = 0.9;
+            
+            // Set WASD keys explicitly
+            camera.keysUp = [87];    // W
+            camera.keysDown = [83];  // S
+            camera.keysLeft = [65];  // A
+            camera.keysRight = [68]; // D
+            
+            // Light
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+            
+            // Add directional light for better shadows
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0, -1, 1), scene);
+            dirLight.intensity = 0.5;
+            
+            // Ground with texture
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            ground.checkCollisions = true;
+            ground.position.y = 0;
+            
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+            ground.material = groundMat;
+            
+            // Create walls
+            createWalls(scene);
+            
+            // Create my player
+            myPlayer = players[playerId];
+            createPlayerModel(playerId, myPlayer);
+            
+            // Create other players
+            for (const id in players) {
+                if (id !== playerId) {
+                    createPlayerModel(id, players[id]);
+                }
+            }
+            
+            // Create existing bullets
+            for (const id in bullets) {
+                createBullet(bullets[id]);
+            }
+            
+            // Weapon
+            createWeapon();
+            
+            // Pointer lock
+            canvas.requestPointerLock = canvas.requestPointerLock || 
+                                     canvas.mozRequestPointerLock || 
+                                     canvas.webkitRequestPointerLock;
+            canvas.onclick = function() {
+                if (!isGameOver) {
+                    canvas.requestPointerLock();
+                }
+            };
+            
+            // Initialize health display
+            updateHealthDisplay();
+            
+            // Game loop
+            engine.runRenderLoop(function() {
+                if (myPlayer && !isGameOver) {
+                    // Update my player position
+                    myPlayer.x = camera.position.x;
+                    myPlayer.y = camera.position.y;
+                    myPlayer.z = camera.position.z;
+                    myPlayer.rotation = camera.rotation.y;
+                    
+                    // Send position to server
+                    socket.emit('move', {
+                        x: myPlayer.x,
+                        y: myPlayer.y,
+                        z: myPlayer.z,
+                        rotation: myPlayer.rotation
+                    });
+                }
+                
+                scene.render();
+            });
+            
+            window.addEventListener("resize", function() {
+                engine.resize();
+            });
+        }
+        
+        // Create walls
+        function createWalls(scene) {
+            const wallHeight = 5;
+            const wallThickness = 1;
+            
+            const wallMaterial = new BABYLON.StandardMaterial("wallMat", scene);
+            wallMaterial.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.6);
+            
+            // North wall
+            const northWall = BABYLON.MeshBuilder.CreateBox("northWall", {
+                width: 100,
+                height: wallHeight,
+                depth: wallThickness
+            }, scene);
+            northWall.position = new BABYLON.Vector3(0, wallHeight/2, 50);
+            northWall.checkCollisions = true;
+            northWall.material = wallMaterial;
+            
+            // South wall
+            const southWall = BABYLON.MeshBuilder.CreateBox("southWall", {
+                width: 100,
+                height: wallHeight,
+                depth: wallThickness
+            }, scene);
+            southWall.position = new BABYLON.Vector3(0, wallHeight/2, -50);
+            southWall.checkCollisions = true;
+            southWall.material = wallMaterial;
+            
+            // East wall
+            const eastWall = BABYLON.MeshBuilder.CreateBox("eastWall", {
+                width: wallThickness,
+                height: wallHeight,
+                depth: 100
+            }, scene);
+            eastWall.position = new BABYLON.Vector3(50, wallHeight/2, 0);
+            eastWall.checkCollisions = true;
+            eastWall.material = wallMaterial;
+            
+            // West wall
+            const westWall = BABYLON.MeshBuilder.CreateBox("westWall", {
+                width: wallThickness,
+                height: wallHeight,
+                depth: 100
+            }, scene);
+            westWall.position = new BABYLON.Vector3(-50, wallHeight/2, 0);
+            westWall.checkCollisions = true;
+            westWall.material = wallMaterial;
+        }
+        
+        // Create player model (using primitive shapes as dummy characters)
+        function createPlayerModel(id, playerData) {
+            // Body (torso)
+            const body = BABYLON.MeshBuilder.CreateCylinder(`body_${id}`, {
+                diameterTop: 0.5,
+                diameterBottom: 0.8,
+                height: 1.5,
+                tessellation: 6
+            }, scene);
+            body.position = new BABYLON.Vector3(playerData.x, playerData.y, playerData.z);
+            body.rotation.y = playerData.rotation;
+            
+            // Head
+            const head = BABYLON.MeshBuilder.CreateSphere(`head_${id}`, {
+                diameter: 0.6
+            }, scene);
+            head.position = new BABYLON.Vector3(0, 0.9, 0);
+            head.parent = body;
+            
+            // Color the player
+            const color = new BABYLON.Color3(
+                (playerData.color >> 16 & 255) / 255,
+                (playerData.color >> 8 & 255) / 255,
+                (playerData.color & 255) / 255
+            );
+            
+            const bodyMat = new BABYLON.StandardMaterial(`bodyMat_${id}`, scene);
+            bodyMat.diffuseColor = color;
+            body.material = bodyMat;
+            
+            const headMat = new BABYLON.StandardMaterial(`headMat_${id}`, scene);
+            headMat.diffuseColor = new BABYLON.Color3(0.9, 0.8, 0.7); // Skin color
+            head.material = headMat;
+            
+            // Store reference
+            players[id].mesh = body;
+            
+            // Health bar above player
+            const healthBar = BABYLON.MeshBuilder.CreatePlane(`healthBar_${id}`, {
+                width: 1,
+                height: 0.2
+            }, scene);
+            healthBar.position = new BABYLON.Vector3(0, 2, 0);
+            healthBar.parent = body;
+            healthBar.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            
+            const healthBarMat = new BABYLON.StandardMaterial(`healthBarMat_${id}`, scene);
+            healthBarMat.emissiveColor = new BABYLON.Color3(0, 1, 0); // Start green
+            healthBar.material = healthBarMat;
+            
+            // Store health bar reference
+            players[id].healthBar = healthBar;
+            players[id].healthBarMat = healthBarMat;
+            
+            // Update health bar appearance
+            updatePlayerHealthBar(id);
+        }
+        
+        // Create a bullet
+        function createBullet(bulletData) {
+            const bullet = BABYLON.MeshBuilder.CreateSphere(`bullet_${bulletData.id}`, {
+                diameter: 0.2
+            }, scene);
+            
+            bullet.position = new BABYLON.Vector3(
+                bulletData.x,
+                bulletData.y,
+                bulletData.z
+            );
+            
+            bullet.direction = new BABYLON.Vector3(
+                bulletData.dx,
+                bulletData.dy,
+                bulletData.dz
+            ).normalize();
+            
+            bullet.speed = 0.5;
+            bullet.playerId = bulletData.playerId;
+            bullet.id = bulletData.id;
+            
+            // Color bullet based on player color
+            const bulletMat = new BABYLON.StandardMaterial(`bulletMat_${bulletData.id}`, scene);
+            if (players[bulletData.playerId]) {
+                const color = new BABYLON.Color3(
+                    (players[bulletData.playerId].color >> 16 & 255) / 255,
+                    (players[bulletData.playerId].color >> 8 & 255) / 255,
+                    (players[bulletData.playerId].color & 255) / 255
+                );
+                bulletMat.emissiveColor = color;
+            } else {
+                bulletMat.emissiveColor = BABYLON.Color3.White();
+            }
+            bullet.material = bulletMat;
+            
+            // Bullet movement and collision
+            const bulletCheck = function() {
+                if (bullet && !isGameOver) {
+                    // Move bullet
+                    bullet.position.addInPlace(bullet.direction.scale(bullet.speed));
+                    
+                    // Check for collisions with players
+                    for (const id in players) {
+                        if (id !== bullet.playerId && players[id].mesh && players[id].health > 0) {
+                            if (bullet.intersectsMesh(players[id].mesh, false)) {
+                                // Hit detected!
+                                socket.emit('hit', {
+                                    playerId: id,
+                                    bulletId: bullet.id
+                                });
+                                return;
+                            }
+                        }
+                    }
+                    
+                    // Check for out of bounds
+                    if (bullet.position.length() > 100) {
+                        socket.emit('bulletRemoved', bullet.id);
+                        return;
+                    }
+                    
+                    // Continue checking
+                    requestAnimationFrame(bulletCheck);
+                }
+            };
+            
+            bulletCheck();
+            
+            // Store reference
+            bullets[bulletData.id].mesh = bullet;
+        }
+        
+        // Create weapon
+        function createWeapon() {
+            // Gun barrel
+            const barrel = BABYLON.MeshBuilder.CreateCylinder("barrel", {
+                diameter: 0.1,
+                height: 1
+            }, scene);
+            barrel.rotation.x = Math.PI / 2;
+            barrel.position = new BABYLON.Vector3(0.3, -0.2, 0.5);
+            
+            // Gun body
+            const body = BABYLON.MeshBuilder.CreateBox("gunBody", {
+                width: 0.3,
+                height: 0.2,
+                depth: 0.8
+            }, scene);
+            body.position = new BABYLON.Vector3(0.3, -0.2, 0.2);
+            
+            // Combine into weapon
+            const weapon = BABYLON.Mesh.MergeMeshes([barrel, body]);
+            weapon.parent = camera;
+            weapon.position = new BABYLON.Vector3(0.5, -0.3, 1);
+            
+            // Weapon material
+            const weaponMat = new BABYLON.StandardMaterial("weaponMat", scene);
+            weaponMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            weapon.material = weaponMat;
+            
+            // Shooting
+            const canvas = document.getElementById("renderCanvas");
+            canvas.addEventListener("click", () => {
+                if (!isGameOver) {
+                    const forward = camera.getForwardRay().direction.normalize();
+                    
+                    const bulletData = {
+                        x: camera.position.x + forward.x * 0.5,
+                        y: camera.position.y + forward.y * 0.5,
+                        z: camera.position.z + forward.z * 0.5,
+                        dx: forward.x,
+                        dy: forward.y,
+                        dz: forward.z
+                    };
+                    
+                    socket.emit('shoot', bulletData);
+                    
+                    // Simple recoil animation
+                    weapon.position.z += 0.1;
+                    setTimeout(() => {
+                        weapon.position.z -= 0.1;
+                    }, 100);
+                }
+            });
+        }
+        
+        // Start the game
+        connectToServer();
+    </script>
 </body>
 </html>
