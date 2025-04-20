@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Indian Nyan Cat Cursor</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: black;
+      height: 100vh;
+      cursor: none;
+    }
+
+    #cat {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .trail-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      width: 40px;
+      height: 18px;
+      z-index: 1;
+      pointer-events: none;
+      animation: fade 0.8s forwards;
+    }
+
+    .stripe {
+      height: 6px;
+      width: 100%;
+    }
+
+    .saffron { background-color: #FF9933; }
+    .white { background-color: white; position: relative; }
+    .green { background-color: #138808; }
+
+    .chakra {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #000088;
+    }
+
+    @keyframes fade {
+      from { opacity: 0.8; }
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <img id="cat" src="https://appstickers-cdn.appadvice.com/433592592/840040241/9ab837e2dccf0612a3403b99005e780e-7.png" alt="Cat Cursor" />
+
+  <script>
+    const cat = document.getElementById('cat');
+    const body = document.body;
+
+    let mouseX = 0;
+    let mouseY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let lastTrailTime = 0;
+
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+
+      // Create trail every 2ms
+      const now = Date.now();
+      if (now - lastTrailTime > 2) {
+        createFlagTrail(currentX - 30, currentY + 10);
+        lastTrailTime = now;
+      }
+    });
+
+    function createFlagTrail(x, y) {
+      const trail = document.createElement('div');
+      trail.className = 'trail-container';
+      trail.style.left = x + 'px';
+      trail.style.top = y + 'px';
+
+      const saffron = document.createElement('div');
+      saffron.className = 'stripe saffron';
+      const white = document.createElement('div');
+      white.className = 'stripe white';
+      const chakra = document.createElement('div');
+      chakra.className = 'chakra';
+      white.appendChild(chakra);
+      const green = document.createElement('div');
+      green.className = 'stripe green';
+
+      trail.appendChild(saffron);
+      trail.appendChild(white);
+      trail.appendChild(green);
+
+      body.appendChild(trail);
+
+      setTimeout(() => trail.remove(), 1000);
+    }
+
+    function animate() {
+      currentX += (mouseX - currentX) * 0.2;
+      currentY += (mouseY - currentY) * 0.2;
+
+      cat.style.left = currentX + 'px';
+      cat.style.top = currentY + 'px';
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+
+</body>
+</html>
