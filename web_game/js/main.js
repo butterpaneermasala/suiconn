@@ -27,6 +27,7 @@ let isSprinting = false;
 let lastMovementTime = 0;
 
 // Initialize game
+// Initialize game
 async function initGame() {
     const canvas = document.getElementById("renderCanvas");
     engine = new BABYLON.Engine(canvas, true);
@@ -36,11 +37,22 @@ async function initGame() {
     scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
     scene.collisionsEnabled = true;
 
-    // Initialize physics
-    physicsPlugin = await HavokPhysics();
+    // Initialize physics - using CannonJS (comment out if using Havok)
     const gravityVector = new BABYLON.Vector3(0, -9.81, 0);
-    const physics = new BABYLON.HavokPlugin(true, physicsPlugin);
-    scene.enablePhysics(gravityVector, physics);
+    const physicsPlugin = new BABYLON.CannonJSPlugin();
+    scene.enablePhysics(gravityVector, physicsPlugin);
+
+    // Initialize physics - using Havok (uncomment if using Havok)
+    try {
+        const havokInstance = await HavokPhysics();
+        const physicsPlugin = new BABYLON.HavokPlugin(true, havokInstance);
+        scene.enablePhysics(gravityVector, physicsPlugin);
+    } catch (e) {
+        console.error("Failed to initialize Havok physics:", e);
+        // Fallback to CannonJS
+        const physicsPlugin = new BABYLON.CannonJSPlugin();
+        scene.enablePhysics(gravityVector, physicsPlugin);
+    }
 
     // Create environment
     createMuseum(scene);
