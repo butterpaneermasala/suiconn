@@ -23,6 +23,22 @@ updating the contact:
     auto call create friend list if the user has no friend list, other wise all good
     let a user create only one friend list
     to update we need package id and upgrade cap
-    upgrade cap: 0x649449f1d5ceb84570c8821ee130e77906cd0cc25ccaf1e531fd40d6ef2299c0
-    package id : 0x659c4ac6fb276403dcf84070bac4b95169135fed57ef4e06e0fe638daee48f3f
+    upgrade cap: 
+    package id : 
+
+
+switched to devnet:
+    fixing registry related errors
+    package id: 
+    registry object id: 
+    import { useWallet, useSuiClient } from '@suiet/wallet-kit';
+    upgrade cap : 
+new deploy:
+    package id: 0x689b3ab5e808c8d0b6b20f23211a45fb02a5e42b6e80e2b0304039b22330c279
+    FriendListRegistry : 0x749a85ea65afc7e1ec0a43f9cccc226f969db27cf7378edaf575117733eb4c6e
+    upgrade cap: 0xae2c4d4534c5f022d16664428e742b16cc282db3c11c05548f1958b878b2d7cc
+
+
+5:32 22: the add friend working..
+
 
