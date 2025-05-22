@@ -46,8 +46,8 @@ import {
   History as HistoryIcon
 } from '@mui/icons-material';
 
-const PACKAGE_ID = '0x2330e27d8276d01ed5c111e6047383b1883570907658b5a099c2366b567f38ca';
-const REGISTRY_OBJECT_ID = '0x4c8501ae4533f3e72fa413586b97933c1b98ad3971f396f966fa5f98c3b871be';
+const PACKAGE_ID = '0x689b3ab5e808c8d0b6b20f23211a45fb02a5e42b6e80e2b0304039b22330c279';
+const REGISTRY_OBJECT_ID = '0x749a85ea65afc7e1ec0a43f9cccc226f969db27cf7378edaf575117733eb4c6e';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
 interface Friend {
@@ -380,49 +380,42 @@ export default function FriendListApp() {
   };
 
   const handlePayFriend = async () => {
-  if (!selectedFriend || !paymentAmount || !signAndExecuteTransaction || !friendListId || !account) return;
-  setLoading(true);
-  setError(null);
-  try {
-    const amount = parseFloat(paymentAmount);
-    if (isNaN(amount)) throw new Error('Invalid amount');
-    
-    const tx = new Transaction();
-    tx.setGasBudget(200000000); // Set explicit gas budget
-    const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount * 1e9)]);
-    
-    // Capture and handle the Move call result
-    const result = tx.moveCall({
-      target: `${PACKAGE_ID}::friend_list::pay_friend`,
-      arguments: [
-        tx.object(friendListId),
-        tx.pure.address(selectedFriend.addr),
-        coin,
-        tx.pure.u64(amount * 1e9),
-        tx.pure.string(paymentMemo),
-      ],
-    });
-    
-    // Transfer any remaining objects to sender
-    tx.transferObjects([result], tx.pure.address(account.address));
-    
-    const response = await signAndExecuteTransaction({ transaction: tx });
-    await suiClient.waitForTransaction({
-      digest: response.digest,
-      timeout: 15000,
-      pollInterval: 1000,
-    });
-    
-    setSuccess(`Sent ${amount} SUI to ${selectedFriend.name}!`);
-    handleClosePaymentDialog();
-    await fetchFriends();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Payment failed');
-  } finally {
-    setLoading(false);
-  }
-};
-
+    if (!selectedFriend || !paymentAmount || !signAndExecuteTransaction || !friendListId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const amount = parseFloat(paymentAmount);
+      if (isNaN(amount)) throw new Error('Invalid amount');
+      
+      const tx = new Transaction();
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount * 1e9)]);
+      tx.moveCall({
+        target: `${PACKAGE_ID}::friend_list::pay_friend`,
+        arguments: [
+          tx.object(friendListId),
+          tx.pure.address(selectedFriend.addr),
+          coin,
+          tx.pure.u64(amount * 1e9),
+          tx.pure.string(paymentMemo),
+        ],
+      });
+      
+      const response = await signAndExecuteTransaction({ transaction: tx });
+      await suiClient.waitForTransaction({
+        digest: response.digest,
+        timeout: 15000,
+        pollInterval: 1000,
+      });
+      
+      setSuccess(`Sent ${amount} SUI to ${selectedFriend.name}!`);
+      handleClosePaymentDialog();
+      await fetchFriends();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (success) {

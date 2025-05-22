@@ -2,11 +2,16 @@ module friend_list::friend_list {
     // use sui::object::{Self, UID, ID};
     // use sui::tx_context::{Self, TxContext};
     // use sui::transfer;
+    use sui::coin::{Self, Coin};
+    use sui::sui::SUI;
     use std::string::{Self, String};
     use sui::table::{Self, Table};
     use sui::event;
     use sui::bag::{Self, Bag};
+    use sui::balance;
     // use std::option::{Self, Option};
+    // use std::vector;
+    // use sui::dynamic_field as df;
 
     // Error codes
     const EALREADY_EXISTS: u64 = 0;
@@ -15,10 +20,13 @@ module friend_list::friend_list {
     const EFRIEND_NOT_FOUND: u64 = 3;
     const EMAX_FRIENDS_EXCEEDED: u64 = 4;
     const ENAME_TOO_LONG: u64 = 5;
+    const EINSUFFICIENT_BALANCE: u64 = 6;
+    const EINVALID_AMOUNT: u64 = 7;
 
     // Constants
     const MAX_FRIENDS: u64 = 100;
     const MAX_NAME_LENGTH: u64 = 50;
+    const MAX_MEMO_LENGTH: u64 = 200;
 
     // Registry object (shared)
     public struct FriendListRegistry has key {
@@ -26,9 +34,16 @@ module friend_list::friend_list {
         lists: Table<address, ID>,
     }
 
-    public struct Friend has store, drop {
+    public struct Friend has store, drop, copy {
         addr: address,
         name: String,
+        timestamp: u64,
+    }
+
+    public struct PaymentRecord has store, drop, copy {
+        from: address,
+        amount: u64,
+        memo: String,
         timestamp: u64,
     }
 
@@ -37,6 +52,7 @@ module friend_list::friend_list {
         owner: address,
         friends: Bag,
         friend_count: u64,
+        payments: Table<address, vector<PaymentRecord>>,
     }
 
     // Events
@@ -55,6 +71,14 @@ module friend_list::friend_list {
     public struct FriendRemoved has copy, drop {
         owner: address,
         friend_addr: address,
+        timestamp: u64,
+    }
+
+    public struct PaymentSent has copy, drop {
+        from: address,
+        to: address,
+        amount: u64,
+        memo: String,
         timestamp: u64,
     }
 
@@ -81,6 +105,7 @@ module friend_list::friend_list {
             owner: sender,
             friends: bag::new(ctx),
             friend_count: 0,
+            payments: table::new(ctx),
         };
 
         let list_id = object::id(&friend_list);
@@ -148,6 +173,48 @@ module friend_list::friend_list {
         });
     }
 
+    public entry fun pay_friend(
+        friend_list: &mut FriendList,
+        friend_addr: address,
+        payment: &mut Coin<SUI>,
+        amount: u64,
+        memo: String,
+        ctx: &mut TxContext
+    ) {
+        let sender = tx_context::sender(ctx);
+        assert!(friend_list.owner == sender, ENOT_OWNER);
+        assert!(bag::contains(&friend_list.friends, friend_addr), EFRIEND_NOT_FOUND);
+        assert!(amount > 0, EINVALID_AMOUNT);
+        assert!(coin::value(payment) >= amount, EINSUFFICIENT_BALANCE);
+        assert!(string::length(&memo) <= MAX_MEMO_LENGTH, ENAME_TOO_LONG);
+
+        let timestamp = tx_context::epoch(ctx);
+
+        // Split the payment
+        let payment_coin = coin::split(payment, amount, ctx);
+
+        // Transfer to friend
+        transfer::public_transfer(payment_coin, friend_addr);
+
+        // Record the payment
+        let payment_record = PaymentRecord {
+            from: sender,
+            amount,
+            memo: copy memo,
+            timestamp,
+        };
+
+        if (!table::contains(&friend_list.payments, friend_addr)) {
+            let mut payment_history = vector::empty<PaymentRecord>();
+            vector::push_back(&mut payment_history, payment_record);
+            table::add(&mut friend_list.payments, friend_addr, payment_history);
+        } else {
+            let payment_history = table::borrow_mut(&mut friend_list.payments, friend_addr);
+            vector::push_back(payment_history, payment_record);
+        }
+    }
+
+
     public fun get_friend_count(friend_list: &FriendList): u64 {
         friend_list.friend_count
     }
@@ -174,35 +241,29 @@ module friend_list::friend_list {
         }
     }
 
-    public entry fun transfer_ownership(
-        friend_list: &mut FriendList,
-        new_owner: address,
-        _ctx: &mut TxContext
-    ) {
-        friend_list.owner = new_owner;
+    public fun get_payment_history(
+        friend_list: &FriendList,
+        friend_addr: address
+    ): Option<vector<PaymentRecord>> {
+        if (table::contains(&friend_list.payments, friend_addr)) {
+            let history = table::borrow(&friend_list.payments, friend_addr);
+            // Create a new vector and copy the elements
+            let mut result = vector::empty<PaymentRecord>();
+            let mut i = 0;
+            while (i < vector::length(history)) {
+                let record = vector::borrow(history, i);
+                let copied_record = PaymentRecord {
+                    from: record.from,
+                    amount: record.amount,
+                    memo: copy record.memo,
+                    timestamp: record.timestamp,
+                };
+                vector::push_back(&mut result, copied_record);
+                i = i + 1;
+            };
+            option::some(result)
+        } else {
+            option::none()
+        }
     }
-
-    // public entry fun clear_friends(
-    // friend_list: &mut FriendList,
-    // ctx: &mut TxContext
-    // ) {
-    //     let sender = tx_context::sender(ctx);
-    //     assert!(friend_list.owner == sender, ENOT_OWNER);
-
-    //     // Move old Bag out and destroy it
-    //     let old_bag = friend_list.friends; // Move operation (not copy)
-    //     bag::destroy_empty(old_bag);       // Proper resource cleanup
-
-    //     // Create and assign new empty Bag
-    //     friend_list.friends = bag::new(ctx);  // Move new Bag into struct
-    //     friend_list.friend_count = 0;
-
-    //     // Emit event with placeholder address (consider adding a dummy address)
-    //     event::emit(FriendRemoved {
-    //         owner: sender,
-    //         friend_addr: address::zero(),  // Use zero address as placeholder
-    //         timestamp: tx_context::epoch(ctx)
-    //     });
-    // }
-
 }

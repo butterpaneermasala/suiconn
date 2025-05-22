@@ -42,3 +42,10 @@ new deploy:
 5:32 22: the add friend working..
 
 
+new:
+    sui client publish --gas-budget 100000000
+    package id : 0x2330e27d8276d01ed5c111e6047383b1883570907658b5a099c2366b567f38ca
+    friendlistregistry object id: 0x4c8501ae4533f3e72fa413586b97933c1b98ad3971f396f966fa5f98c3b871be
+    upgrade_cap: 0xfb0047c6e3b72d278b88e8b8dc980f63092af64709f436b4a7bcea5b5abb360a
+
+
