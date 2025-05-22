@@ -44,8 +44,8 @@ new deploy:
 
 new:
     sui client publish --gas-budget 100000000
-    package id : 0x2330e27d8276d01ed5c111e6047383b1883570907658b5a099c2366b567f38ca
-    friendlistregistry object id: 0x4c8501ae4533f3e72fa413586b97933c1b98ad3971f396f966fa5f98c3b871be
-    upgrade_cap: 0xfb0047c6e3b72d278b88e8b8dc980f63092af64709f436b4a7bcea5b5abb360a
+    package id : 0xa51f7191b61e90545b5b30f88481402dbc4ada4742dc941694f20f89d58a6511
+    friendlistregistry object id: 0x557c4f0d57d188a491303586e278cf30da5046e3ab07a34fc6202df0fedbca14
+    upgrade_cap: 0x5c0c5d5fce5375f3d8e220f9f01dec57fd98895896b4fbd088fc19d3da648eba
 
 

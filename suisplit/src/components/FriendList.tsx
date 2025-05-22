@@ -46,8 +46,8 @@ import {
   History as HistoryIcon
 } from '@mui/icons-material';
 
-const PACKAGE_ID = '0x2330e27d8276d01ed5c111e6047383b1883570907658b5a099c2366b567f38ca';
-const REGISTRY_OBJECT_ID = '0x4c8501ae4533f3e72fa413586b97933c1b98ad3971f396f966fa5f98c3b871be';
+const PACKAGE_ID = '0xa51f7191b61e90545b5b30f88481402dbc4ada4742dc941694f20f89d58a6511';
+const REGISTRY_OBJECT_ID = '0x557c4f0d57d188a491303586e278cf30da5046e3ab07a34fc6202df0fedbca14';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
 interface Friend {
@@ -380,48 +380,49 @@ export default function FriendListApp() {
   };
 
   const handlePayFriend = async () => {
-  if (!selectedFriend || !paymentAmount || !signAndExecuteTransaction || !friendListId || !account) return;
-  setLoading(true);
-  setError(null);
-  try {
-    const amount = parseFloat(paymentAmount);
+    if (!selectedFriend || !paymentAmount || !signAndExecuteTransaction || !friendListId || !account) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const amount = parseFloat(paymentAmount);
     if (isNaN(amount)) throw new Error('Invalid amount');
     
     const tx = new Transaction();
-    tx.setGasBudget(200000000); // Set explicit gas budget
-    const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount * 1e9)]);
+    tx.setGasBudget(200000000);
     
-    // Capture and handle the Move call result
-    const result = tx.moveCall({
+    // 1. Split coins and get reference
+    const [paymentCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount * 1e9)]);
+    
+    // 2. Use the split coin reference directly
+    tx.moveCall({
       target: `${PACKAGE_ID}::friend_list::pay_friend`,
       arguments: [
         tx.object(friendListId),
         tx.pure.address(selectedFriend.addr),
-        coin,
+        paymentCoin,  // Use the split coin reference
         tx.pure.u64(amount * 1e9),
         tx.pure.string(paymentMemo),
       ],
     });
-    
-    // Transfer any remaining objects to sender
-    tx.transferObjects([result], tx.pure.address(account.address));
-    
+
     const response = await signAndExecuteTransaction({ transaction: tx });
-    await suiClient.waitForTransaction({
-      digest: response.digest,
-      timeout: 15000,
-      pollInterval: 1000,
-    });
-    
-    setSuccess(`Sent ${amount} SUI to ${selectedFriend.name}!`);
-    handleClosePaymentDialog();
-    await fetchFriends();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Payment failed');
-  } finally {
-    setLoading(false);
-  }
-};
+      await suiClient.waitForTransaction({
+        digest: response.digest,
+        timeout: 15000,
+        pollInterval: 1000,
+      });
+      
+      setSuccess(`Sent ${amount} SUI to ${selectedFriend.name}!`);
+      handleClosePaymentDialog();
+      await fetchFriends();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
 
   useEffect(() => {

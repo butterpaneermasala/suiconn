@@ -176,27 +176,29 @@ module friend_list::friend_list {
     public entry fun pay_friend(
         friend_list: &mut FriendList,
         friend_addr: address,
-        payment: &mut Coin<SUI>,
+        payment: Coin<SUI>,  // Changed to by-value
         amount: u64,
         memo: String,
         ctx: &mut TxContext
     ) {
         let sender = tx_context::sender(ctx);
+        assert!(coin::value(&payment) >= amount, EINSUFFICIENT_BALANCE);
         assert!(friend_list.owner == sender, ENOT_OWNER);
         assert!(bag::contains(&friend_list.friends, friend_addr), EFRIEND_NOT_FOUND);
         assert!(amount > 0, EINVALID_AMOUNT);
-        assert!(coin::value(payment) >= amount, EINSUFFICIENT_BALANCE);
         assert!(string::length(&memo) <= MAX_MEMO_LENGTH, ENAME_TOO_LONG);
 
         let timestamp = tx_context::epoch(ctx);
 
-        // Split the payment
-        let payment_coin = coin::split(payment, amount, ctx);
-
-        // Transfer to friend
+        // Split into payment and remainder
+        let mut payment = payment;  // Make mutable
+        let payment_coin = coin::split(&mut payment, amount, ctx);
+        
+        // Transfer both coins
         transfer::public_transfer(payment_coin, friend_addr);
+        transfer::public_transfer(payment, sender);  // Remaining balance
 
-        // Record the payment
+        // Record payment (unchanged)
         let payment_record = PaymentRecord {
             from: sender,
             amount,
@@ -213,6 +215,7 @@ module friend_list::friend_list {
             vector::push_back(payment_history, payment_record);
         }
     }
+
 
 
     public fun get_friend_count(friend_list: &FriendList): u64 {
