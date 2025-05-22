@@ -41,9 +41,9 @@ import {
   BatchPrediction as BatchIcon
 } from '@mui/icons-material';
 
-const PACKAGE_ID = '0x8765bb4cc3243d839dbe0f43b738e0a8ec10ba37fbed9046cc65a852290b835c';
-const REGISTRY_OBJECT_ID = '0x3c6edee1ffc3c77b896a22b513ac427fb400a94caf47f4fc567f29be37a4c1f6';
-const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
+const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
+const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
+const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
 interface Friend {
   addr: string;
