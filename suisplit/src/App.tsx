@@ -555,7 +555,7 @@ const handleBatchPayFriends = async () => {
       <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h4" component="h1" fontWeight="bold">
-            FriendPay
+            suiConn
           </Typography>
           <ConnectButton />
         </Stack>
