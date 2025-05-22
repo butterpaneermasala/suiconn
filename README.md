@@ -1,4 +1,4 @@
-# Friend List DApp
+# Friend Pay DApp
 
 A decentralized application (DApp) built on the Sui blockchain that allows users to manage their friend lists and send payments to friends. The application consists of a Move smart contract for on-chain logic and a React frontend for user interaction.
 
