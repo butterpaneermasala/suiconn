@@ -17,11 +17,17 @@
     "@mysten/dapp-kit": "^0.16.4",
     "@mysten/sui": "^1.30.0",
     "@suiet/wallet-kit": "^0.4.1",
+    "@tailwindcss/vite": "^4.1.7",
     "@tanstack/react-query": "^5.76.1",
+    "autoprefixer": "^10.4.21",
+    "framer-motion": "^12.12.1",
+    "lucide-react": "^0.511.0",
     "mui": "^0.0.1",
+    "postcss": "^8.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-hot-toast": "^2.5.2"
+    "react-hot-toast": "^2.5.2",
+    "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

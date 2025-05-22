@@ -1,69 +1,20 @@
 import { useState, useEffect } from "react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet, ConnectButton } from "@suiet/wallet-kit";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { SuiClient } from "@mysten/sui/client";
 import type { SuiParsedData } from '@mysten/sui/client';
-import { formatAddress } from "@mysten/sui/utils";
-// import { bcs } from "@mysten/sui/bcs";  // Replace @mysten/bcs
-import Grid from '@mui/material/GridLegacy';
-// import { BCS, getSuiMoveConfig } from "@mysten/bcs";
 
-// Create a BCS instance
-// const bcs = new BCS(getSuiMoveConfig());
-
-
-// UI Components
-import {
-  Box,
-  Button,
-  Card,
-  Container,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-  Alert,
-  Chip,
-  Avatar,
-  IconButton,
-  Tooltip
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Payment as PaymentIcon,
-  Refresh as RefreshIcon,
-  AccountCircle as AccountCircleIcon,
-  History as HistoryIcon
-} from '@mui/icons-material';
-
-const PACKAGE_ID = '0xa51f7191b61e90545b5b30f88481402dbc4ada4742dc941694f20f89d58a6511';
-const REGISTRY_OBJECT_ID = '0x557c4f0d57d188a491303586e278cf30da5046e3ab07a34fc6202df0fedbca14';
-const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
+const PACKAGE_ID = '0x689b3ab5e808c8d0b6b20f23211a45fb02a5e42b6e80e2b0304039b22330c279';
+const REGISTRY_OBJECT_ID = '0x749a85ea65afc7e1ec0a43f9cccc226f969db27cf7378edaf575117733eb4c6e';
+const SUI_RPC_URL = "https://fullnode.devnet.sui.io:443";
+const suiClient = new SuiClient({ url: SUI_RPC_URL });
 
 interface Friend {
   addr: string;
   name: string;
-  timestamp?: number;
 }
 
-interface PaymentRecord {
-  from: string;
-  amount: number;
-  memo: string;
-  timestamp: number;
-}
-
-export default function FriendListApp() {
+export default function FriendList() {
   const { signAndExecuteTransaction, account, connected, disconnect } = useWallet();
   const [friendAddress, setFriendAddress] = useState('');
   const [friendName, setFriendName] = useState('');
@@ -71,13 +22,6 @@ export default function FriendListApp() {
   const [friendListId, setFriendListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMemo, setPaymentMemo] = useState('');
-  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
-  const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   function getTableIdFromRegistryContent(content: SuiParsedData | undefined): string | null {
     if (!content || content.dataType !== 'moveObject') return null;
@@ -168,6 +112,8 @@ export default function FriendListApp() {
         throw new Error('Invalid friend list format');
       }
 
+      console.log("Raw friend list object content:", JSON.stringify(content, null, 2));
+
       let friendsData: Friend[] = [];
       const fields = content.fields as any;
       
@@ -189,8 +135,7 @@ export default function FriendListApp() {
             if (friendValue.addr || field.name.value) {
               friendsData.push({
                 addr: friendValue.addr || field.name.value,
-                name: friendValue.name || 'Unknown',
-                timestamp: friendValue.timestamp
+                name: friendValue.name || 'Unknown'
               });
             }
           }
@@ -205,69 +150,6 @@ export default function FriendListApp() {
       setLoading(false);
     }
   };
-
-  const fetchPaymentHistory = async (friendAddr: string) => {
-  if (!friendListId) return;
-  setLoading(true);
-  try {
-    // Get the FriendList object
-    const friendListObj = await suiClient.getObject({
-      id: friendListId,
-      options: { showContent: true }
-    });
-
-    if (friendListObj.data?.content?.dataType !== 'moveObject') {
-      setPaymentHistory([]);
-      return;
-    }
-
-    const fields = friendListObj.data.content.fields as any;
-    if (!fields.payments) {
-      setPaymentHistory([]);
-      return;
-    }
-
-    // Get the dynamic fields from the payments table
-    const { data: paymentFields } = await suiClient.getDynamicFields({
-      parentId: fields.payments.fields.id.id
-    });
-
-    // Find the payment history for this friend
-    const friendPaymentField = paymentFields.find(field => 
-      field.name.type === 'address' && 
-      field.name.value === friendAddr
-    );
-
-    if (!friendPaymentField) {
-      setPaymentHistory([]);
-      return;
-    }
-
-    // Get the payment history object
-    const paymentObj = await suiClient.getObject({
-      id: friendPaymentField.objectId,
-      options: { showContent: true }
-    });
-
-    if (paymentObj.data?.content?.dataType === 'moveObject') {
-      const paymentFields = paymentObj.data.content.fields as any;
-      const history = paymentFields.value || [];
-      setPaymentHistory(history.map((item: any) => ({
-        from: item.fields.from,
-        amount: Number(item.fields.amount),
-        memo: item.fields.memo,
-        timestamp: Number(item.fields.timestamp)
-      })));
-    } else {
-      setPaymentHistory([]);
-    }
-  } catch (err) {
-    console.error('Error fetching payment history:', err);
-    setPaymentHistory([]);
-  } finally {
-    setLoading(false);
-  }
-};
 
   const createFriendList = async () => {
     if (!account?.address || !signAndExecuteTransaction) return;
@@ -285,10 +167,11 @@ export default function FriendListApp() {
         timeout: 15000,
         pollInterval: 1000,
       });
-      setSuccess("Friend list created successfully!");
+      alert("Friend list created successfully!");
       await fetchFriendListId();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Creation failed');
+      alert("Error: " + (err instanceof Error ? err.message : 'Creation failed'));
     } finally {
       setLoading(false);
     }
@@ -315,12 +198,14 @@ export default function FriendListApp() {
         timeout: 15000,
         pollInterval: 1000,
       });
-      setSuccess(`Added ${friendName} to your friends list!`);
+      alert(`Added ${friendName} to your friends list!`);
       setFriendAddress('');
       setFriendName('');
       await fetchFriends();
+      setTimeout(fetchFriends, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add friend');
+      alert("Error: " + (err instanceof Error ? err.message : 'Failed to add friend'));
     } finally {
       setLoading(false);
     }
@@ -346,98 +231,15 @@ export default function FriendListApp() {
         timeout: 15000,
         pollInterval: 1000,
       });
-      setSuccess(`Removed ${name} from your friends list!`);
+      alert(`Removed ${name} from your friends list!`);
       await fetchFriends();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove friend');
+      alert("Error: " + (err instanceof Error ? err.message : 'Failed to remove friend'));
     } finally {
       setLoading(false);
     }
   };
-
-  const handleOpenPaymentDialog = (friend: Friend) => {
-    setSelectedFriend(friend);
-    setPaymentDialogOpen(true);
-  };
-
-  const handleOpenHistoryDialog = async (friend: Friend) => {
-    setSelectedFriend(friend);
-    await fetchPaymentHistory(friend.addr);
-    setHistoryDialogOpen(true);
-  };
-
-  const handleClosePaymentDialog = () => {
-    setPaymentDialogOpen(false);
-    setSelectedFriend(null);
-    setPaymentAmount('');
-    setPaymentMemo('');
-  };
-
-  const handleCloseHistoryDialog = () => {
-    setHistoryDialogOpen(false);
-    setSelectedFriend(null);
-    setPaymentHistory([]);
-  };
-
-  const handlePayFriend = async () => {
-    if (!selectedFriend || !paymentAmount || !signAndExecuteTransaction || !friendListId || !account) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const amount = parseFloat(paymentAmount);
-    if (isNaN(amount)) throw new Error('Invalid amount');
-    
-    const tx = new Transaction();
-    tx.setGasBudget(200000000);
-    
-    // 1. Split coins and get reference
-    const [paymentCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount * 1e9)]);
-    
-    // 2. Use the split coin reference directly
-    tx.moveCall({
-      target: `${PACKAGE_ID}::friend_list::pay_friend`,
-      arguments: [
-        tx.object(friendListId),
-        tx.pure.address(selectedFriend.addr),
-        paymentCoin,  // Use the split coin reference
-        tx.pure.u64(amount * 1e9),
-        tx.pure.string(paymentMemo),
-      ],
-    });
-
-    const response = await signAndExecuteTransaction({ transaction: tx });
-      await suiClient.waitForTransaction({
-        digest: response.digest,
-        timeout: 15000,
-        pollInterval: 1000,
-      });
-      
-      setSuccess(`Sent ${amount} SUI to ${selectedFriend.name}!`);
-      handleClosePaymentDialog();
-      await fetchFriends();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   useEffect(() => {
     if (connected && account?.address) {
@@ -457,262 +259,246 @@ export default function FriendListApp() {
   }, [friendListId]);
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1" fontWeight="bold">
-            FriendPay
-          </Typography>
-          <ConnectButton />
-        </Stack>
-
-        {loading && (
-          <Box textAlign="center" my={2}>
-            <CircularProgress />
-            <Typography variant="body1" mt={1}>Processing...</Typography>
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
-          </Alert>
-        )}
-
-        {!connected ? (
-          <Box textAlign="center" py={4}>
-            <Typography variant="h6" mb={2}>
-              Connect your wallet to manage your friends list
-            </Typography>
-            <ConnectButton />
-          </Box>
-        ) : !friendListId ? (
-          <Box textAlign="center" py={4}>
-            <Typography variant="h6" mb={3}>
-              Welcome! Create your friend list to get started
-            </Typography>
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<AddIcon />}
-              onClick={createFriendList}
-              disabled={loading}
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Friend Manager</h1>
+        <ConnectButton />
+        {connected && (
+          <div style={{ marginTop: 10 }}>
+            <div>
+              Connected as: {account?.address
+                ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}`
+                : ""}
+            </div>
+            <button
+              onClick={disconnect}
+              style={{
+                ...styles.button,
+                backgroundColor: "#f44336",
+                marginTop: 10,
+              }}
             >
-              Create Friend List
-            </Button>
-          </Box>
-        ) : (
-          <>
-            <Card sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" mb={2} fontWeight="bold">
-                Add New Friend
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={5}>
-                  <TextField
-                    fullWidth
-                    label="Friend's Address"
-                    value={friendAddress}
-                    onChange={(e) => setFriendAddress(e.target.value)}
-                    placeholder="0x..."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={5}>
-                  <TextField
-                    fullWidth
-                    label="Friend's Name"
-                    value={friendName}
-                    onChange={(e) => setFriendName(e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={2}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={handleAddFriend}
-                    disabled={!friendAddress || !friendName || loading}
-                    startIcon={<AddIcon />}
-                    sx={{ height: '56px' }}
-                  >
-                    Add
-                  </Button>
-                </Grid>
-              </Grid>
-            </Card>
-
-            <Card sx={{ p: 3 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" fontWeight="bold">
-                  Your Friends ({friends.length})
-                </Typography>
-                <Button
-                  variant="outlined"
-                  onClick={fetchFriends}
-                  disabled={loading}
-                  startIcon={<RefreshIcon />}
-                >
-                  Refresh
-                </Button>
-              </Stack>
-
-              {friends.length === 0 ? (
-                <Box textAlign="center" py={4}>
-                  <Typography variant="body1" color="text.secondary">
-                    No friends added yet
-                  </Typography>
-                </Box>
-              ) : (
-                <List>
-                  {friends.map((friend, index) => (
-                    <div key={index}>
-                      <ListItem
-                        secondaryAction={
-                          <Stack direction="row" spacing={1}>
-                            <Tooltip title="View Payment History">
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleOpenHistoryDialog(friend)}
-                              >
-                                <HistoryIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<PaymentIcon />}
-                              onClick={() => handleOpenPaymentDialog(friend)}
-                            >
-                              Pay
-                            </Button>
-                            <Tooltip title="Remove Friend">
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleRemoveFriend(friend.addr, friend.name)}
-                                disabled={loading}
-                              >
-                                <DeleteIcon color="error" />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        }
-                      >
-                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                          {friend.name.charAt(0).toUpperCase()}
-                        </Avatar>
-                        <ListItemText
-                          primary={friend.name}
-                          secondary={formatAddress(friend.addr)}
-                        />
-                      </ListItem>
-                      {index < friends.length - 1 && <Divider />}
-                    </div>
-                  ))}
-                </List>
-              )}
-            </Card>
-          </>
+              Disconnect
+            </button>
+          </div>
         )}
-      </Paper>
+        <p style={styles.subtitle}>
+          {friendListId ? 'Manage your friends list' : 'Get started by creating your list'}
+        </p>
+      </div>
 
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onClose={handleClosePaymentDialog}>
-        <DialogTitle>
-          Send Payment to {selectedFriend?.name}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1, minWidth: '400px' }}>
-            <TextField
-              label="Amount (SUI)"
-              type="number"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label="Memo"
-              value={paymentMemo}
-              onChange={(e) => setPaymentMemo(e.target.value)}
-              fullWidth
-              multiline
-              rows={3}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClosePaymentDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handlePayFriend}
-            disabled={!paymentAmount || loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <PaymentIcon />}
+      {loading && (
+        <div style={styles.loading}>
+          ⏳ Processing...
+        </div>
+      )}
+
+      {error && (
+        <div style={styles.error}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {!connected ? (
+        <div style={{textAlign: 'center', padding: '20px 0'}}>
+          <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px'}}>
+            Please connect your wallet
+          </h3>
+        </div>
+      ) : !friendListId ? (
+        <div style={{textAlign: 'center', padding: '20px 0'}}>
+          <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '15px'}}>
+            No Friend List Found
+          </h3>
+          <button 
+            onClick={createFriendList}
+            style={{...styles.button, ...styles.createButton, ...(loading ? styles.disabledButton : {})}}
+            disabled={loading || !connected}
           >
-            Send Payment
-          </Button>
-        </DialogActions>
-      </Dialog>
+            {loading ? 'Creating...' : 'Create Friend List'}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={styles.form}>
+            <h3 style={{fontSize: '18px', fontWeight: 'bold', marginBottom: '10px'}}>Add New Friend</h3>
+            <input
+              value={friendAddress}
+              onChange={(e) => setFriendAddress(e.target.value)}
+              placeholder="Friend's address (0x...)"
+              style={styles.input}
+            />
+            <input
+              value={friendName}
+              onChange={(e) => setFriendName(e.target.value)}
+              placeholder="Friend's name"
+              style={styles.input}
+            />
+            <button
+              onClick={handleAddFriend}
+              disabled={!friendAddress || !friendName || loading}
+              style={{
+                ...styles.button, 
+                ...((!friendAddress || !friendName || loading) ? styles.disabledButton : {})
+              }}
+            >
+              {loading ? 'Adding...' : 'Add Friend'}
+            </button>
+          </div>
 
-      {/* History Dialog */}
-      <Dialog open={historyDialogOpen} onClose={handleCloseHistoryDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Payment History with {selectedFriend?.name}
-        </DialogTitle>
-        <DialogContent>
-          {loading ? (
-            <Box textAlign="center" py={4}>
-              <CircularProgress />
-            </Box>
-          ) : paymentHistory.length === 0 ? (
-            <Typography variant="body1" color="text.secondary" textAlign="center" py={4}>
-              No payment history found
-            </Typography>
-          ) : (
-            <List>
-              {paymentHistory.map((payment, index) => (
-                <div key={index}>
-                  <ListItem>
-                    <ListItemText
-                      primary={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Chip
-                            label={`${payment.amount / 1e9} SUI`}
-                            color="primary"
-                            size="small"
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {new Date(payment.timestamp).toLocaleString()}
-                          </Typography>
-                        </Stack>
-                      }
-                      secondary={
-                        <>
-                          <Typography variant="body2">
-                            From: {formatAddress(payment.from)}
-                          </Typography>
-                          {payment.memo && (
-                            <Typography variant="body2" fontStyle="italic">
-                              Note: {payment.memo}
-                            </Typography>
-                          )}
-                        </>
-                      }
-                    />
-                  </ListItem>
-                  {index < paymentHistory.length - 1 && <Divider />}
-                </div>
-              ))}
-            </List>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseHistoryDialog}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+          <div>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+              <h3 style={{fontSize: '18px', fontWeight: 'bold'}}>Your Friends</h3>
+              <button 
+                onClick={fetchFriends}
+                style={{color: '#0066cc', background: 'none', border: 'none', cursor: 'pointer'}}
+                disabled={loading}
+              >
+                ↻ Refresh
+              </button>
+            </div>
+            
+            {friends.length === 0 ? (
+              <p style={styles.noFriends}>No friends added yet</p>
+            ) : (
+              <ul style={styles.list}>
+                {friends.map((f, idx) => (
+                  <li key={idx} style={styles.listItem}>
+                    <div>
+                      <span style={styles.friendName}>{f.name}</span>
+                      <span style={styles.friendAddress}>
+                        ({f.addr.slice(0, 6)}...{f.addr.slice(-4)})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFriend(f.addr, f.name)}
+                      style={{...styles.button, ...styles.removeButton}}
+                      disabled={loading}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
+
+const styles = {
+  container: {
+    maxWidth: '600px',
+    margin: '0 auto',
+    padding: '20px',
+    fontFamily: 'Arial, sans-serif',
+  },
+  header: {
+    textAlign: 'center' as const,
+    marginBottom: '20px',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    marginBottom: '10px',
+  },
+  subtitle: {
+    fontSize: '16px',
+    color: '#666',
+    marginBottom: '5px',
+  },
+  wallet: {
+    fontSize: '14px',
+    color: '#555',
+    marginBottom: '20px',
+  },
+  warning: {
+    padding: '10px',
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffeeba',
+    color: '#856404',
+    borderRadius: '5px',
+    marginBottom: '15px',
+  },
+  form: {
+    marginBottom: '20px',
+  },
+  input: {
+    width: '100%',
+    padding: '8px',
+    marginBottom: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    border: 'none',
+    color: 'white',
+    padding: '10px 15px',
+    textAlign: 'center' as const,
+    textDecoration: 'none',
+    display: 'inline-block',
+    fontSize: '16px',
+    margin: '4px 2px',
+    cursor: 'pointer',
+    borderRadius: '4px',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+    cursor: 'not-allowed',
+  },
+  createButton: {
+    backgroundColor: '#2196F3',
+  },
+  list: {
+    listStyle: 'none',
+    padding: 0,
+  },
+  listItem: {
+    padding: '10px',
+    backgroundColor: '#f9f9f9',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  friendName: {
+    fontWeight: 'bold',
+  },
+  friendAddress: {
+    fontSize: '14px',
+    color: '#666',
+    marginLeft: '5px',
+  },
+  removeButton: {
+    backgroundColor: '#f44336',
+    padding: '5px 10px',
+    fontSize: '14px',
+  },
+  loading: {
+    color: '#0056b3',
+    marginBottom: '15px',
+  },
+  error: {
+    color: '#dc3545',
+    marginBottom: '15px',
+  },
+  noFriends: {
+    textAlign: 'center' as const,
+    color: '#666',
+    padding: '20px 0',
+  },
+  fetchedData: {
+    margin: '20px 0',
+    padding: '10px',
+    background: '#f4f4f4',
+    borderRadius: '6px',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    overflowX: 'auto' as const,
+    wordBreak: 'break-word' as const,
+  }
+};
