@@ -1,4 +1,4 @@
-# Friend Pay DApp
+# SUICONN
 
 A decentralized application (DApp) built on the Sui blockchain that allows users to manage their friend lists and send payments to friends. The application consists of a Move smart contract for on-chain logic and a React frontend for user interaction.
 
@@ -8,7 +8,6 @@ A decentralized application (DApp) built on the Sui blockchain that allows users
 - **Payment System**: Send SUI tokens to individual friends or multiple friends at once
 - **Payment History**: Track all payments sent to friends with memos and timestamps
 - **Batch Payments**: Send payments to multiple friends in a single transaction
-- **Wallet Integration**: Connect using Suiet wallet
 - **Real-time Updates**: Automatic refresh of friend lists and payment status
 
 ## Architecture
