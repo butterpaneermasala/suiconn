@@ -327,30 +327,30 @@ export default function FriendListApp() {
     }
   };
 
-  const createFriendList = async () => {
-    if (!account?.address || !signAndExecuteTransaction) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::friend_list::create`,
-        arguments: [tx.object(REGISTRY_OBJECT_ID)],
-      });
-      const response = await signAndExecuteTransaction({ transaction: tx });
-      await suiClient.waitForTransaction({
-        digest: response.digest,
-        timeout: 15000,
-        pollInterval: 1000,
-      });
-      setSuccess("Friend list created successfully!");
-      await fetchFriendListId();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Creation failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const createFriendList = async () => {
+  //   if (!account?.address || !signAndExecuteTransaction) return;
+  //   setLoading(true);
+  //   setError(null);
+  //   try {
+  //     const tx = new Transaction();
+  //     tx.moveCall({
+  //       target: `${PACKAGE_ID}::friend_list::create`,
+  //       arguments: [tx.object(REGISTRY_OBJECT_ID)],
+  //     });
+  //     const response = await signAndExecuteTransaction({ transaction: tx });
+  //     await suiClient.waitForTransaction({
+  //       digest: response.digest,
+  //       timeout: 15000,
+  //       pollInterval: 1000,
+  //     });
+  //     setSuccess("Friend list created successfully!");
+  //     await fetchFriendListId();
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : 'Creation failed');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleAddFriend = async () => {
     if (!friendListId || !friendAddress || !friendName || !signAndExecuteTransaction) return;

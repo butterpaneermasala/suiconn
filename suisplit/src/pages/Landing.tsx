@@ -8,17 +8,17 @@ import {
   Star,
   Sparkles,
   Globe,
-  Lock,
+  // Lock,
   TrendingUp,
   Layers
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 
-const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
+// const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
 const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
@@ -196,7 +196,7 @@ const Landing = () => {
     totalVolume: 0,
     totalTransactions: 0
   });
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
