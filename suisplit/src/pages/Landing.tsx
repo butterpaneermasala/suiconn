@@ -228,7 +228,7 @@ const FeatureCard = ({ icon: Icon, title, description, delay }: {
 );
 
 const ScrollIndicator = () => (
-  <div className="fixed right-8 top-1/2 transform -translate-y-1/2 animate-bounce">
+  <div className="hidden md:block fixed right-8 top-1/2 transform -translate-y-1/2 animate-bounce">
     <div className="flex flex-col items-center text-white/60">
       <span className="text-lg font-medium mb-4">Scroll to explore</span>
       <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,13 +341,13 @@ const Landing = () => {
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-8 relative z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-50">
           {/* Header Section */}
           <Card className="mb-8 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl animate-on-scroll">
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                  <CardTitle className="text-3xl font-bold text-white">SuiConn</CardTitle>
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-white">SuiConn</CardTitle>
                   <CardDescription className="text-gray-300">
                     Decentralized Friend Management & Payments on Sui
                   </CardDescription>
@@ -364,7 +364,7 @@ const Landing = () => {
             <div className="mb-12 flex justify-center animate-on-scroll">
               <div className="relative group">
                 <div className="absolute -inset-8 bg-gradient-to-r from-cyan-400/20 to-purple-600/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
-                <div className="flex items-center text-8xl font-black relative z-10">
+                <div className="flex items-center text-6xl sm:text-8xl font-black relative z-10">
                   <div className="text-blue-400">Sui</div>
                   <div className="text-white">Conn</div>
                 </div>
@@ -372,7 +372,7 @@ const Landing = () => {
             </div>
 
             <div className="space-y-8">
-              <h1 className="text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight animate-on-scroll delay-100">
+              <h1 className="text-5xl sm:text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight animate-on-scroll delay-100">
                 The Future of
                 <br />
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
@@ -382,21 +382,21 @@ const Landing = () => {
                 Social Payments
               </h1>
 
-              <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed font-light animate-on-scroll delay-200">
+              <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed font-light animate-on-scroll delay-200">
                 Experience seamless peer-to-peer transactions on Sui blockchain with revolutionary
                 social features. Connect, transact, and thrive in the decentralized economy.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12 animate-on-scroll delay-300">
-                <Link to="/app" className="group">
-                  <Button size="lg" className="text-xl px-12 py-6 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
+                <Link to="/app" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full text-lg sm:text-xl px-8 sm:px-12 py-6 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
                     <Sparkles className="mr-3 w-6 h-6" />
                     Launch App
                     <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform duration-300" />
                   </Button>
                 </Link>
 
-                <Button variant="outline" size="lg" className="text-xl px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl hover:shadow-white/10 transform hover:scale-105 transition-all duration-500 font-semibold">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-lg sm:text-xl px-8 sm:px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl hover:shadow-white/10 transform hover:scale-105 transition-all duration-500 font-semibold">
                   <Globe className="mr-3 w-6 h-6" />
                   View Demo
                 </Button>
@@ -406,7 +406,7 @@ const Landing = () => {
           </div>
 
           {/* Animated Feature Cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-24">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-24">
             <FeatureCard
               icon={Users}
               title="Add Friends Once"
@@ -446,7 +446,7 @@ const Landing = () => {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-24">
             <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -491,30 +491,30 @@ const Landing = () => {
           </div>
 
           {/* CTA Section */}
-          <div className="text-center backdrop-blur-xl bg-gradient-to-r from-white/5 to-white/10 rounded-3xl border border-white/20 p-16 shadow-2xl animate-on-scroll">
+          <div className="text-center backdrop-blur-xl bg-gradient-to-r from-white/5 to-white/10 rounded-3xl border border-white/20 p-8 sm:p-16 shadow-2xl animate-on-scroll">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 animate-on-scroll delay-100">
+              <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 animate-on-scroll delay-100">
                 Ready to revolutionize
                 <br />
                 your <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">crypto experience</span>?
               </h2>
 
-              <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto animate-on-scroll delay-200">
+              <p className="text-lg sm:text-xl text-gray-300 mb-12 max-w-2xl mx-auto animate-on-scroll delay-200">
                 Join the future of decentralized social payments. Connect your wallet and start
                 building meaningful blockchain relationships today.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-6 justify-center animate-on-scroll delay-300">
-                <Link to="/app">
-                  <Button size="lg" className="text-xl px-12 py-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
+                <Link to="/app" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full text-lg sm:text-xl px-8 sm:px-12 py-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
                     <TrendingUp className="mr-3 w-6 h-6" />
                     Get Started Now
                     <ArrowRight className="ml-3 w-6 h-6" />
                   </Button>
                 </Link>
 
-                <Link to="/learn-more">
-                  <Button variant="outline" size="lg" className="text-xl px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl font-semibold">
+                <Link to="/learn-more" className="w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="w-full text-lg sm:text-xl px-8 sm:px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl font-semibold">
                     <Layers className="mr-3 w-6 h-6" />
                     Learn More
                   </Button>
@@ -526,11 +526,11 @@ const Landing = () => {
           {/* Footer */}
           <footer className="mt-24 pt-12 border-t border-white/10 animate-on-scroll">
             <div className="text-center text-gray-400">
-              <p className="text-lg">© 2024 SuiConn. Revolutionizing blockchain social payments.</p>
-              <div className="flex justify-center space-x-8 mt-6">
-                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">Privacy</a>
-                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">Terms</a>
-                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">Support</a>
+              <p className="text-base sm:text-lg">© 2025 SuiConn. Revolutionizing blockchain social payments.</p>
+              <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-8 mt-6">
+                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">S</a>
+                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">U</a>
+                <a href="#" className="hover:text-cyan-400 transition-colors duration-300">I</a>
               </div>
             </div>
           </footer>

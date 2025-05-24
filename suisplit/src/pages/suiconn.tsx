@@ -629,13 +629,13 @@ const handleBatchPayFriends = async () => {
       <UnderwaterOverlay />
       <CoralReef />
       <FloatingBubbles />
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Header Section */}
         <Card className="mb-8 backdrop-blur-xl bg-white/15 border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-500">
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
-                <CardTitle className="text-3xl font-bold text-white group-hover:text-cyan-300 transition-colors duration-300">SuiConn Dashboard</CardTitle>
+                <CardTitle className="text-2xl sm:text-3xl font-bold text-white group-hover:text-cyan-300 transition-colors duration-300">SuiConn Dashboard</CardTitle>
                 <CardDescription className="text-gray-300">
                   Manage your friends and make payments on Sui
                 </CardDescription>
@@ -661,11 +661,11 @@ const handleBatchPayFriends = async () => {
         </Card>
 
         {connected ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-6 sm:space-y-8">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="backdrop-blur-2xl bg-white/15 border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300 group">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -722,7 +722,7 @@ const handleBatchPayFriends = async () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <input
                       type="text"
                       placeholder="Friend's Address"
@@ -751,7 +751,7 @@ const handleBatchPayFriends = async () => {
               {/* Friends List */}
               <Card className="backdrop-blur-3xl bg-white/15 border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <CardHeader>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div>
                       <CardTitle className="text-xl font-semibold text-white group-hover:text-cyan-300 transition-colors duration-300">Friends List</CardTitle>
                       <CardDescription className="text-gray-300">
@@ -783,7 +783,7 @@ const handleBatchPayFriends = async () => {
                     {friends.map((friend) => (
                       <Card key={friend.addr} className="backdrop-blur-3xl bg-white/5 border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300 group">
                         <CardContent className="p-4">
-                          <div className="flex justify-between items-center">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                               <h3 className="font-medium text-white group-hover:text-cyan-300 transition-colors duration-300">{friend.name}</h3>
                               <p className="text-sm text-gray-300">
@@ -826,7 +826,7 @@ const handleBatchPayFriends = async () => {
             </div>
 
             {/* Right Column - Activity Feed */}
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* Recent Activity */}
               <Card className="backdrop-blur-3xl bg-white/5 border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <CardHeader>
@@ -862,7 +862,7 @@ const handleBatchPayFriends = async () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Button
                       variant="outline"
                       className="h-auto py-4 border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl transition-all duration-300"
@@ -920,13 +920,13 @@ const handleBatchPayFriends = async () => {
           </div>
         ) : (
           <Card className="backdrop-blur-3xl bg-white/5 border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-500">
-            <CardContent className="p-12 text-center">
+            <CardContent className="p-8 sm:p-12 text-center">
               <div className="max-w-md mx-auto">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
-                  <WalletIcon className="w-10 h-10 text-cyan-400" />
+                <div className="w-16 sm:w-20 h-16 sm:h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
+                  <WalletIcon className="w-8 sm:w-10 h-8 sm:h-10 text-cyan-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
-                <p className="text-gray-300 mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
+                <p className="text-sm sm:text-base text-gray-300 mb-8">
                   Connect your wallet to manage friends and make payments on the Sui blockchain
                 </p>
                 <ConnectButton />
@@ -937,7 +937,7 @@ const handleBatchPayFriends = async () => {
 
         {/* Payment Dialog */}
         {paymentDialogOpen && selectedFriend && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <Card className="w-full max-w-md backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
               <CardHeader>
                 <CardTitle className="text-white">Send Payment</CardTitle>
@@ -989,7 +989,7 @@ const handleBatchPayFriends = async () => {
 
         {/* History Dialog */}
         {historyDialogOpen && selectedFriend && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <Card className="w-full max-w-2xl backdrop-blur-3xl bg-white/5 border border-white/10 shadow-2xl">
               <CardHeader>
                 <CardTitle className="text-white">Payment History</CardTitle>
@@ -1002,7 +1002,7 @@ const handleBatchPayFriends = async () => {
                   <div className="space-y-4">
                     {paymentHistory.map((record, index) => (
                       <div key={index} className="backdrop-blur-3xl bg-white/5 rounded-xl border border-white/10 p-4">
-                        <div className="flex justify-between items-start">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                           <div>
                             <p className="text-sm text-gray-400">From: {formatAddress(record.from)}</p>
                             <p className="text-sm text-gray-400">Amount: {record.amount.toFixed(2)} SUI</p>
@@ -1034,7 +1034,7 @@ const handleBatchPayFriends = async () => {
 
         {/* Batch Payment Dialog */}
         {batchDialogOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <Card className="w-full max-w-2xl backdrop-blur-3xl bg-white/5 border border-white/10 shadow-2xl">
               <CardHeader>
                 <CardTitle className="text-white">Batch Payment</CardTitle>
@@ -1045,7 +1045,7 @@ const handleBatchPayFriends = async () => {
               <CardContent>
                 <div className="space-y-4">
                   {batchPayments.map((payment, index) => (
-                    <div key={index} className="flex gap-4">
+                    <div key={index} className="flex flex-col sm:flex-row gap-4">
                       <select
                         value={payment.recipient}
                         onChange={(e) => handleBatchPaymentChange(index, 'recipient', e.target.value)}

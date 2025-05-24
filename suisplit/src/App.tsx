@@ -13,7 +13,7 @@ const SuiConnApp = () => {
         <Route path="/app" element={<FriendListApp />} />
         <Route path="/learn-more" element={<LearnMore />} />
       </Routes>
-    </div>
+                </div>
   );
 };
 
