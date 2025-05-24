@@ -1,239 +1,229 @@
-# SUICONN
+text
+# suiconn
 
-A decentralized application (DApp) built on the Sui blockchain that allows users to manage their friend lists and send payments to friends. The application consists of a Move smart contract for on-chain logic and a React frontend for user interaction.
+**suiconn** is a decentralized application (DApp) built on the Sui blockchain that enables users to manage friend lists and send payments to friends. It combines a Move smart contract for secure on-chain logic with a modern React frontend for a seamless user experience.
 
-## Features
+---
 
-- **Friend Management**: Add and remove friends from your personal list
-- **Payment System**: Send SUI tokens to individual friends or multiple friends at once
-- **Payment History**: Track all payments sent to friends with memos and timestamps
-- **Batch Payments**: Send payments to multiple friends in a single transaction
-- **Real-time Updates**: Automatic refresh of friend lists and payment status
+## 🚀 Features
 
-## Architecture
+- **Friend Management:** Add, view, and remove friends from your personal list.
+- **Payment System:** Send SUI tokens to individual friends or multiple friends at once.
+- **Payment History:** Track all payments sent to friends, with memos and timestamps.
+- **Batch Payments:** Send payments to multiple friends in a single transaction.
+- **Real-Time Updates:** Automatic refresh of friend lists and payment status.
 
-### Smart Contract (`friend_list.move`)
+---
 
-The smart contract is written in Move and deployed on the Sui blockchain. It includes:
+## 🏗️ Architecture
 
-#### Main Structures
-- `FriendListRegistry`: Shared object that tracks all user friend lists
-- `FriendList`: Individual user's friend list with payment history
-- `Friend`: Friend information (address, name, timestamp)  
-- `PaymentRecord`: Payment transaction details
+### Move Smart Contract (`friend_list.move`)
+
+- **FriendListRegistry:** Tracks all user friend lists.
+- **FriendList:** Each user's friend list with payment history.
+- **Friend:** Friend's address, name, and timestamp.
+- **PaymentRecord:** Payment details (amount, memo, timestamp).
 
 #### Key Functions
-- `create()`: Create a new friend list for a user
-- `add_friend()`: Add a friend to the list
-- `remove_friend()`: Remove a friend from the list
-- `pay_friend()`: Send payment to a single friend
-- `batch_pay_friends_simple()`: Send payments to multiple friends
-- View functions for querying friend and payment data
 
-#### Constants & Limits
-- Maximum 100 friends per list
-- Maximum 50 characters for friend names
-- Maximum 200 characters for payment memos
-- Maximum 20 recipients per batch payment
+- `create()`: Create a new friend list.
+- `add_friend()`: Add a friend.
+- `remove_friend()`: Remove a friend.
+- `pay_friend()`: Send payment to a friend.
+- `batch_pay_friends_simple()`: Batch payments.
+- **View functions** for querying friend/payment data.
+
+#### Limits
+
+- Max 100 friends per list.
+- Max 50 characters for friend names.
+- Max 200 characters for payment memos.
+- Max 20 recipients per batch payment.
 
 ### Frontend (`FriendList.tsx`)
 
-Built with React and TypeScript, featuring:
+- Built with React + TypeScript.
+- Wallet connection via Suiet Wallet Kit.
+- Real-time blockchain data fetching.
+- Transaction signing and execution.
+- Error handling and loading states.
 
-- Wallet connection using Suiet wallet kit
-- Friend list management interface
-- Real-time blockchain data fetching
-- Transaction signing and execution
-- Error handling and loading states
+---
 
-## Prerequisites
+## ⚙️ Prerequisites
 
-- Node.js (v16 or higher)
+- [Node.js](https://nodejs.org/) (v16+)
 - npm or yarn
-- Sui CLI (for contract deployment)
-- Suiet wallet browser extension
+- [Sui CLI](https://docs.sui.io/build/install) (for contract deployment)
+- [Suiet Wallet](https://suiet.app/) browser extension
 
-## Installation
+---
+
+## 🛠️ Installation
 
 ### 1. Clone the Repository
 
-```bash
-git clone <repository-url>
-cd friend-list-dapp
-```
+git clone https://github.com/butterpaneermasala/suiconn.git
+cd suiconn
+
+text
 
 ### 2. Install Dependencies
 
-```bash
 npm install
-# or
+
+or
 yarn install
-```
 
-### 3. Required Dependencies
+text
 
-For the frontend, ensure you have these key dependencies:
+---
 
-```json
-{
-  "@mysten/sui": "latest",
-  "@suiet/wallet-kit": "latest",
-  "react": "^18.0.0",
-  "typescript": "latest"
-}
-```
+## 🚀 Deployment
 
-## Deployment
+### Smart Contract
 
-### Smart Contract Deployment
-
-1. **Compile the contract:**
-```bash
+**Compile:**
 sui move build
-```
 
-2. **Deploy to devnet:**
-```bash
+text
+
+**Deploy to Devnet:**
 sui client publish --gas-budget 100000000
-```
 
-3. **Note the Package ID and Registry Object ID** from the deployment output
+text
 
-### Frontend Configuration
+> **Note:** Save the `PACKAGE_ID` and `REGISTRY_OBJECT_ID` from the deployment output.
 
-Update the constants in your React component:
+### Frontend
 
-```typescript
+Update these constants in your frontend code:
 const PACKAGE_ID = 'YOUR_DEPLOYED_PACKAGE_ID';
 const REGISTRY_OBJECT_ID = 'YOUR_REGISTRY_OBJECT_ID';
-```
 
-## Usage
+text
+
+---
+
+## 🧑‍💻 Usage
 
 ### Getting Started
 
-1. **Connect Wallet**: Click "Connect" and approve the Suiet wallet connection
-2. **Create Friend List**: If you don't have a friend list, click "Create Friend List"
-3. **Add Friends**: Enter friend's address and name, then click "Add Friend"
+1. **Connect Wallet:** Click "Connect" and approve Suiet Wallet.
+2. **Create Friend List:** If new, click "Create Friend List."
+3. **Add Friends:** Enter friend's Sui address and name, then "Add Friend."
 
 ### Managing Friends
 
-- **Add Friend**: Provide Sui address (0x...) and display name
-- **Remove Friend**: Click "Remove" next to any friend in your list
-- **View Friends**: Your friends list updates automatically
+- **Add:** Provide Sui address and display name.
+- **Remove:** Click "Remove" next to a friend.
+- **View:** Friend list updates automatically.
 
-### Making Payments
+### Sending Payments
 
-The smart contract supports payments, but the current frontend focuses on friend management. Payment functionality can be added by:
+- Payment logic is supported by the contract.
+- To enable payments in the frontend, add fields for amount/memo and call `pay_friend` or `batch_pay_friends_simple`.
 
-1. Adding payment input fields (amount, memo)
-2. Implementing the `pay_friend` transaction call
-3. Adding batch payment interface for multiple recipients
+---
 
-### Error Handling
+## 🛡️ Error Codes
 
-The app includes comprehensive error handling for:
-- Wallet connection issues
-- Transaction failures
-- Invalid addresses or data
-- Network connectivity problems
+| Code | Meaning |
+|------|---------|
+| 0 | Friend list already exists |
+| 1 | Not the owner of friend list |
+| 2 | Friend already added |
+| 3 | Friend not found |
+| 4 | Max friends exceeded |
+| 5 | Name too long |
+| 6 | Insufficient SUI balance |
+| 7 | Invalid payment amount |
+| 8 | Batch array mismatch |
+| 9 | Empty batch |
+| 10 | Max batch size exceeded |
 
-## Smart Contract Details
+---
 
-### Error Codes
+## 📡 Network Configuration
 
-- `EALREADY_EXISTS (0)`: Friend list already exists for user
-- `ENOT_OWNER (1)`: User is not the owner of the friend list
-- `EFRIEND_ALREADY_ADDED (2)`: Friend already exists in the list
-- `EFRIEND_NOT_FOUND (3)`: Friend not found in the list
-- `EMAX_FRIENDS_EXCEEDED (4)`: Maximum friend limit reached
-- `ENAME_TOO_LONG (5)`: Name exceeds character limit
-- `EINSUFFICIENT_BALANCE (6)`: Not enough SUI for payment
-- `EINVALID_AMOUNT (7)`: Payment amount must be greater than 0
-- `EVECTOR_LENGTH_MISMATCH (8)`: Batch payment arrays don't match
-- `EEMPTY_BATCH (9)`: Batch payment cannot be empty
-- `EMAX_BATCH_SIZE_EXCEEDED (10)`: Too many recipients in batch
+- Default: Sui Devnet (`https://fullnode.devnet.sui.io:443`)
+- To use Mainnet, update the RPC URL in your frontend.
 
-### Events
+---
 
-The contract emits events for all major actions:
-- `FriendListCreated`: When a new friend list is created
-- `FriendAdded`: When a friend is added
-- `FriendRemoved`: When a friend is removed
-- `PaymentSent`: When a payment is sent
-- `BatchPaymentSent`: When batch payments are sent
+## 🔒 Security
 
-## Development
+- Always verify friend addresses before adding.
+- Double-check payment amounts and recipients.
+- Friend lists are private and require ownership checks.
+- Payment records are permanently on-chain.
 
-### Running Locally
+---
 
-```bash
-npm start
-# or
-yarn start
-```
+## 🚧 Limitations
 
-### Building for Production
+- Max 100 friends per list.
+- Name: 50 chars; Memo: 200 chars.
+- Batch payments: max 20 recipients.
+- No friend list sharing or friend request system (yet).
 
-```bash
+---
+
+## 🤝 Contributing
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes (+ tests if possible).
+4. Submit a pull request.
+
+---
+
+## 🛠️ Development
+
+### Run Locally
+
+npm run dev
+
+or
+yarn dev
+
+text
+
+### Build for Production
+
 npm run build
-# or
+
+or
 yarn build
-```
 
-### Testing
+text
 
-To test the smart contract:
+### Test Smart Contract
 
-```bash
 sui move test
-```
 
-## Network Configuration
+text
 
-The app is currently configured for Sui Devnet:
-- RPC URL: `https://fullnode.devnet.sui.io:443`
-- For Mainnet, update the RPC URL accordingly
+---
 
-## Security Considerations
+## 🗺️ Roadmap
 
-- Always verify friend addresses before adding them
-- Double-check payment amounts and recipients
-- The smart contract includes ownership checks for all operations
-- Friend lists are private to each user
-- Payment records are permanently stored on-chain
+- Frontend payment interface.
+- Friend request/approval system.
+- Group and scheduled payments.
+- Social features (recommendations).
+- Mobile version.
+- DeFi protocol integrations.
 
-## Limitations
+---
 
-- Maximum 100 friends per list
-- Friend names limited to 50 characters
-- Payment memos limited to 200 characters
-- Batch payments limited to 20 recipients
-- No friend list sharing between users
-- No friend request/approval system
+## 🆘 Support
 
-## Contributing
+- Check browser console for errors.
+- Ensure your wallet has SUI for gas.
+- Verify contract addresses and network.
+- For issues, open a GitHub issue or PR.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+---
 
-## Support
-
-For issues and questions:
-- Check the error messages in the browser console
-- Ensure your wallet has sufficient SUI for gas fees
-- Verify contract addresses are correct for your network
-
-## Roadmap
-
-Future enhancements may include:
-- Payment interface in the frontend
-- Friend request/approval system
-- Group payment functionality
-- Payment scheduling
-- Social features (friend recommendations)
-- Mobile app version
-- Integration with other Sui DeFi protocols
+**suiconn** is open source and welcomes your contributions and feedback!
