@@ -5,7 +5,6 @@ import {
   Zap,
   Shield,
   ArrowRight,
-  Star,
   Sparkles,
   Globe,
   // Lock,
@@ -17,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../co
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import CursorFollower from "../components/CursorFollower";
 
 // const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
 const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
@@ -44,8 +44,8 @@ const BubbleAnimation = () => {
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
 
-      const minSize = Math.max(20, window.innerWidth * 0.03);
-      const maxSize = Math.max(60, window.innerWidth * 0.12);
+      const minSize = Math.max(15, window.innerWidth * 0.02);
+      const maxSize = Math.max(40, window.innerWidth * 0.08);
       const size = Math.random() * (maxSize - minSize) + minSize;
       bubble.style.width = `${size}px`;
       bubble.style.height = `${size}px`;
@@ -75,12 +75,12 @@ const BubbleAnimation = () => {
     }
 
     // Initial burst of bubbles
-    for (let i = 0; i < 15; i++) {
-      setTimeout(createBubble, i * 100);
+    for (let i = 0; i < 5; i++) {
+      setTimeout(createBubble, i * 200);
     }
 
     // Continuous bubble creation with longer interval
-    const interval = setInterval(createBubble, 500);
+    const interval = setInterval(createBubble, 800);
 
     return () => {
       clearInterval(interval);
@@ -159,10 +159,13 @@ const ScrollAnimation = () => {
       elements.forEach(element => {
         const elementTop = element.getBoundingClientRect().top;
         const elementBottom = element.getBoundingClientRect().bottom;
-        const isVisible = (elementTop < window.innerHeight) && (elementBottom >= 0);
+        const isVisible = (elementTop < window.innerHeight * 0.8) && (elementBottom >= 0);
         
         if (isVisible) {
           element.classList.add('animate-fade-in');
+        } else {
+          // Remove the animation class when element is out of view
+          element.classList.remove('animate-fade-in');
         }
       });
     };
@@ -178,17 +181,62 @@ const ScrollAnimation = () => {
       {`
         .animate-on-scroll {
           opacity: 0;
-          transform: translateY(20px);
-          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+          transform: translateY(40px);
+          transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .animate-fade-in {
           opacity: 1;
           transform: translateY(0);
         }
+        .animate-on-scroll.delay-100 {
+          transition-delay: 100ms;
+        }
+        .animate-on-scroll.delay-200 {
+          transition-delay: 200ms;
+        }
+        .animate-on-scroll.delay-300 {
+          transition-delay: 300ms;
+        }
       `}
     </style>
   );
 };
+
+const FeatureCard = ({ icon: Icon, title, description, delay }: { 
+  icon: any, 
+  title: string, 
+  description: string,
+  delay: number 
+}) => (
+  <div 
+    className="group relative backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 hover:bg-white/10 animate-on-scroll"
+    style={{ animationDelay: `${delay}s` }}
+  >
+    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-blue-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+    <div className="relative z-10">
+      <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+        <Icon className="w-10 h-10 text-white" />
+      </div>
+      <h3 className="text-2xl font-bold mb-4 text-white group-hover:text-cyan-300 transition-colors duration-300">
+        {title}
+      </h3>
+      <p className="text-gray-300 leading-relaxed">
+        {description}
+      </p>
+    </div>
+  </div>
+);
+
+const ScrollIndicator = () => (
+  <div className="fixed right-8 top-1/2 transform -translate-y-1/2 animate-bounce">
+    <div className="flex flex-col items-center text-white/60">
+      <span className="text-lg font-medium mb-4">Scroll to explore</span>
+      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
+    </div>
+  </div>
+);
 
 const Landing = () => {
   const [stats, setStats] = useState({
@@ -278,6 +326,7 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen">
+      <CursorFollower />
       <BubbleAnimation />
       <ScrollAnimation />
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 relative overflow-hidden">
@@ -311,16 +360,19 @@ const Landing = () => {
           </Card>
 
           {/* Hero Section */}
-          <div className="text-center mb-24 max-w-6xl mx-auto animate-on-scroll">
-            <div className="mb-12 flex justify-center">
+          <div className="text-center mb-24 max-w-6xl mx-auto relative">
+            <div className="mb-12 flex justify-center animate-on-scroll">
               <div className="relative group">
                 <div className="absolute -inset-8 bg-gradient-to-r from-cyan-400/20 to-purple-600/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
-                <div className="text-8xl font-black text-white relative z-10">SuiConn</div>
+                <div className="flex items-center text-8xl font-black relative z-10">
+                  <div className="text-blue-400">Sui</div>
+                  <div className="text-white">Conn</div>
+                </div>
               </div>
             </div>
 
             <div className="space-y-8">
-              <h1 className="text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight">
+              <h1 className="text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight animate-on-scroll delay-100">
                 The Future of
                 <br />
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
@@ -330,12 +382,12 @@ const Landing = () => {
                 Social Payments
               </h1>
 
-              <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed font-light">
+              <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed font-light animate-on-scroll delay-200">
                 Experience seamless peer-to-peer transactions on Sui blockchain with revolutionary
                 social features. Connect, transact, and thrive in the decentralized economy.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12 animate-on-scroll delay-300">
                 <Link to="/app" className="group">
                   <Button size="lg" className="text-xl px-12 py-6 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
                     <Sparkles className="mr-3 w-6 h-6" />
@@ -350,62 +402,47 @@ const Landing = () => {
                 </Button>
               </div>
             </div>
+            <ScrollIndicator />
           </div>
 
-          {/* Features Grid */}
-          <div id="features" className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
-            {[
-              {
-                icon: Users,
-                title: "Social Network",
-                description: "Build meaningful connections in the Web3 ecosystem with advanced friend management",
-                gradient: "from-cyan-500 to-blue-600",
-                bgGradient: "from-cyan-500/10 to-blue-600/10"
-              },
-              {
-                icon: Wallet,
-                title: "Instant Payments",
-                description: "Lightning-fast SUI transfers with ultra-low fees and military-grade security",
-                gradient: "from-purple-500 to-pink-600",
-                bgGradient: "from-purple-500/10 to-pink-600/10"
-              },
-              {
-                icon: Zap,
-                title: "Batch Processing",
-                description: "Execute multiple transactions simultaneously with our advanced batch system",
-                gradient: "from-emerald-500 to-teal-600",
-                bgGradient: "from-emerald-500/10 to-teal-600/10"
-              },
-              {
-                icon: Shield,
-                title: "Fort Knox Security",
-                description: "Powered by Sui's cutting-edge blockchain technology for maximum protection",
-                gradient: "from-orange-500 to-red-600",
-                bgGradient: "from-orange-500/10 to-red-600/10"
-              }
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="group relative backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 hover:bg-white/10 animate-on-scroll"
-                style={{ animationDelay: `${index * 0.2}s` }}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
-
-                <div className="relative z-10">
-                  <div className={`w-20 h-20 mx-auto mb-6 bg-gradient-to-br ${feature.gradient} rounded-2xl shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                    <feature.icon className="w-10 h-10 text-white" />
-                  </div>
-
-                  <h3 className="text-2xl font-bold mb-4 text-white group-hover:text-cyan-300 transition-colors duration-300">
-                    {feature.title}
-                  </h3>
-
-                  <p className="text-gray-300 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+          {/* Animated Feature Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-24">
+            <FeatureCard
+              icon={Users}
+              title="Add Friends Once"
+              description="Save friend addresses permanently. No more copy-pasting or making mistakes with long addresses."
+              delay={0.1}
+            />
+            <FeatureCard
+              icon={Wallet}
+              title="Pay Forever"
+              description="Once added, send payments to your friends instantly with just a few clicks."
+              delay={0.2}
+            />
+            <FeatureCard
+              icon={Zap}
+              title="Batch Payments"
+              description="Send multiple payments at once. Perfect for splitting bills or group transactions."
+              delay={0.3}
+            />
+            <FeatureCard
+              icon={Shield}
+              title="Secure Storage"
+              description="Your friend list is securely stored on the blockchain, accessible only to you."
+              delay={0.4}
+            />
+            <FeatureCard
+              icon={TrendingUp}
+              title="Transaction History"
+              description="Keep track of all your payments with detailed transaction history."
+              delay={0.5}
+            />
+            <FeatureCard
+              icon={Layers}
+              title="Easy Management"
+              description="Add, remove, and manage your friends with a simple, intuitive interface."
+              delay={0.6}
+            />
           </div>
 
           {/* Stats Section */}
@@ -456,27 +493,18 @@ const Landing = () => {
           {/* CTA Section */}
           <div className="text-center backdrop-blur-xl bg-gradient-to-r from-white/5 to-white/10 rounded-3xl border border-white/20 p-16 shadow-2xl animate-on-scroll">
             <div className="max-w-4xl mx-auto">
-              <div className="flex justify-center mb-8">
-                <div className="flex items-center space-x-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-8 h-8 text-yellow-400 fill-current" />
-                  ))}
-                  <span className="text-gray-300 ml-4 text-lg font-medium">Trusted by thousands</span>
-                </div>
-              </div>
-
-              <h2 className="text-5xl md:text-6xl font-bold text-white mb-6">
+              <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 animate-on-scroll delay-100">
                 Ready to revolutionize
                 <br />
                 your <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">crypto experience</span>?
               </h2>
 
-              <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
+              <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto animate-on-scroll delay-200">
                 Join the future of decentralized social payments. Connect your wallet and start
                 building meaningful blockchain relationships today.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center animate-on-scroll delay-300">
                 <Link to="/app">
                   <Button size="lg" className="text-xl px-12 py-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
                     <TrendingUp className="mr-3 w-6 h-6" />
@@ -485,10 +513,12 @@ const Landing = () => {
                   </Button>
                 </Link>
 
-                <Button variant="outline" size="lg" className="text-xl px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl font-semibold">
-                  <Layers className="mr-3 w-6 h-6" />
-                  Learn More
-                </Button>
+                <Link to="/learn-more">
+                  <Button variant="outline" size="lg" className="text-xl px-12 py-6 border-2 border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 rounded-2xl shadow-xl font-semibold">
+                    <Layers className="mr-3 w-6 h-6" />
+                    Learn More
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
