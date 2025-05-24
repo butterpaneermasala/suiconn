@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Layers
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
@@ -22,48 +22,123 @@ const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bd
 const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
-// Splash screen component
-const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
+// Bubble animation component
+const BubbleAnimation = () => {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2000); // Show splash for 2 seconds
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+    const gradients = [
+      'radial-gradient(circle at 30% 30%, #ff9a9e 0%, #fecfef 100%)',
+      'radial-gradient(circle at 70% 30%, #a8edea 0%, #fed6e3 100%)',
+      'radial-gradient(circle at 30% 70%, #ffecd2 0%, #fcb69f 100%)',
+      'radial-gradient(circle at 70% 70%, #89f7fe 0%, #66a6ff 100%)',
+      'radial-gradient(circle at 50% 50%, #fdbb2d 0%, #22c1c3 100%)',
+      'radial-gradient(circle at 30% 30%, #ff758c 0%, #ff7eb3 100%)',
+      'radial-gradient(circle at 70% 30%, #c471f5 0%, #fa71cd 100%)',
+      'radial-gradient(circle at 30% 70%, #4facfe 0%, #00f2fe 100%)',
+      'radial-gradient(circle at 70% 70%, #fa709a 0%, #fee140 100%)',
+      'radial-gradient(circle at 50% 50%, #a8ff78 0%, #78ffd6 100%)',
+      'radial-gradient(circle at 30% 30%, #667eea 0%, #764ba2 100%)',
+      'radial-gradient(circle at 70% 30%, #f093fb 0%, #f5576c 100%)'
+    ];
+
+    function createBubble() {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+
+      const minSize = Math.max(20, window.innerWidth * 0.03);
+      const maxSize = Math.max(60, window.innerWidth * 0.12);
+      const size = Math.random() * (maxSize - minSize) + minSize;
+      bubble.style.width = `${size}px`;
+      bubble.style.height = `${size}px`;
+
+      const left = Math.random() * (window.innerWidth - size);
+      bubble.style.left = `${left}px`;
+      bubble.style.bottom = '0';
+
+      bubble.style.setProperty('--x', '0px');
+      const drift = (Math.random() - 0.5) * 80;
+      bubble.style.setProperty('--drift', `${drift}px`);
+      const scale = 0.8 + Math.random() * 0.7;
+      bubble.style.setProperty('--scale', scale.toString());
+
+      const duration = (3 + Math.random() * 4) + (size / 100);
+      bubble.style.animation = `floatUp ${duration.toString()}s linear`;
+      bubble.style.animationDelay = `${Math.random()}s`;
+
+      bubble.style.background = gradients[Math.floor(Math.random() * gradients.length)];
+
+      const highlight = document.createElement('div');
+      highlight.className = 'bubble-highlight';
+      bubble.appendChild(highlight);
+
+      document.body.appendChild(bubble);
+      bubble.addEventListener('animationend', () => bubble.remove());
+    }
+
+    // Initial burst of bubbles
+    for (let i = 0; i < 15; i++) {
+      setTimeout(createBubble, i * 100);
+    }
+
+    // Continuous bubble creation with longer interval
+    const interval = setInterval(createBubble, 500);
+
+    return () => {
+      clearInterval(interval);
+      // Clean up any remaining bubbles
+      document.querySelectorAll('.bubble').forEach(bubble => bubble.remove());
+    };
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-transparent">
-      {/* Initial bubbles */}
-      {[...Array(50)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full bg-white/20 backdrop-blur-sm animate-splash-bubble"
-          style={{
-            width: Math.random() * 40 + 10,
-            height: Math.random() * 40 + 10,
-            left: `${Math.random() * 100}%`,
-            bottom: `${Math.random() * 30}%`,
-            animationDelay: `${Math.random() * 0.3}s`,
-            boxShadow: '0 0 20px rgba(255, 255, 255, 0.1)',
-          }}
-        />
-      ))}
-    </div>
+    <style>
+      {`
+        .bubble {
+          position: fixed;
+          border-radius: 50%;
+          opacity: 0.7;
+          will-change: transform, opacity;
+          pointer-events: none;
+          box-shadow:
+            0 8px 30px rgba(0,0,0,0.15),
+            inset 0 0 30px rgba(255,255,255,0.3);
+          overflow: visible;
+          transform-origin: center;
+          aspect-ratio: 1;
+          z-index: 10;
+          bottom: 0;
+        }
+        .bubble-highlight {
+          position: absolute;
+          top: 18%;
+          left: 22%;
+          width: 40%;
+          height: 35%;
+          background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.1) 100%);
+          border-radius: 50%;
+          filter: blur(2px);
+          pointer-events: none;
+          z-index: 1;
+        }
+        @keyframes floatUp {
+          0% {
+            transform: translate3d(var(--x, 0px), 100vh, 0) scale(var(--scale, 1));
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.7;
+          }
+          90% {
+            opacity: 0.7;
+          }
+          100% {
+            transform: translate3d(calc(var(--x, 0px) + var(--drift, 40px)), -100vh, 0) scale(var(--scale, 1));
+            opacity: 0;
+          }
+        }
+      `}
+    </style>
   );
 };
-
-// Bubble component
-const Bubble = ({ delay, size, duration, x, y }: { delay: number; size: number; duration: number; x: number; y: number }) => (
-  <div
-    className="absolute rounded-full bg-white/10 backdrop-blur-sm"
-    style={{
-      width: size,
-      height: size,
-      left: `${x}%`,
-      bottom: `${y}%`,
-      animation: `float ${duration}s ease-in-out ${delay}s infinite`,
-      boxShadow: '0 0 20px rgba(255, 255, 255, 0.1)',
-    }}
-  />
-);
 
 // Underwater overlay component
 const UnderwaterOverlay = () => (
@@ -76,13 +151,52 @@ const UnderwaterOverlay = () => (
   </div>
 );
 
+// Add scroll animation component
+const ScrollAnimation = () => {
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = document.querySelectorAll('.animate-on-scroll');
+      elements.forEach(element => {
+        const elementTop = element.getBoundingClientRect().top;
+        const elementBottom = element.getBoundingClientRect().bottom;
+        const isVisible = (elementTop < window.innerHeight) && (elementBottom >= 0);
+        
+        if (isVisible) {
+          element.classList.add('animate-fade-in');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Initial check
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <style>
+      {`
+        .animate-on-scroll {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .animate-fade-in {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      `}
+    </style>
+  );
+};
+
 const Landing = () => {
-  const [showSplash, setShowSplash] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVolume: 0,
     totalTransactions: 0
   });
+  const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
@@ -163,25 +277,13 @@ const Landing = () => {
   }, []);
 
   return (
-    <>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      
+    <div className="min-h-screen">
+      <BubbleAnimation />
+      <ScrollAnimation />
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 relative overflow-hidden">
         {/* Underwater Effect */}
         <UnderwaterOverlay />
         
-        {/* Floating Bubbles */}
-        {[...Array(20)].map((_, i) => (
-          <Bubble
-            key={i}
-            delay={Math.random() * 5}
-            size={Math.random() * 20 + 10}
-            duration={Math.random() * 10 + 10}
-            x={Math.random() * 100}
-            y={Math.random() * 100}
-          />
-        ))}
-
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl animate-pulse"></div>
@@ -189,50 +291,10 @@ const Landing = () => {
           <div className="absolute bottom-40 left-1/3 w-64 h-64 bg-gradient-to-r from-emerald-400/10 to-teal-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
 
-        {/* Add keyframes for animations */}
-        <style>
-          {`
-            @keyframes float {
-              0% {
-                transform: translateY(0) translateX(0);
-                opacity: 0;
-              }
-              10% {
-                opacity: 0.8;
-              }
-              90% {
-                opacity: 0.8;
-              }
-              100% {
-                transform: translateY(-100vh) translateX(20px);
-                opacity: 0;
-              }
-            }
-
-            @keyframes splash-bubble {
-              0% {
-                transform: translateY(0) scale(0);
-                opacity: 0;
-              }
-              20% {
-                opacity: 0.8;
-              }
-              100% {
-                transform: translateY(-100vh) scale(1);
-                opacity: 0;
-              }
-            }
-
-            .animate-splash-bubble {
-              animation: splash-bubble 1.5s ease-out forwards;
-            }
-          `}
-        </style>
-
-        {/* Main Content - Now with higher z-index */}
+        {/* Main Content */}
         <div className="container mx-auto px-4 py-8 relative z-50">
           {/* Header Section */}
-          <Card className="mb-8 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
+          <Card className="mb-8 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl animate-on-scroll">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
@@ -249,7 +311,7 @@ const Landing = () => {
           </Card>
 
           {/* Hero Section */}
-          <div className="text-center mb-24 max-w-6xl mx-auto">
+          <div className="text-center mb-24 max-w-6xl mx-auto animate-on-scroll">
             <div className="mb-12 flex justify-center">
               <div className="relative group">
                 <div className="absolute -inset-8 bg-gradient-to-r from-cyan-400/20 to-purple-600/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
@@ -324,7 +386,7 @@ const Landing = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group relative backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 hover:bg-white/10"
+                className="group relative backdrop-blur-xl bg-white/5 rounded-3xl border border-white/10 p-8 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 hover:bg-white/10 animate-on-scroll"
                 style={{ animationDelay: `${index * 0.2}s` }}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
@@ -348,7 +410,7 @@ const Landing = () => {
 
           {/* Stats Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl">
+            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -362,7 +424,7 @@ const Landing = () => {
               </CardContent>
             </Card>
 
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl">
+            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -376,7 +438,7 @@ const Landing = () => {
               </CardContent>
             </Card>
 
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl">
+            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -392,7 +454,7 @@ const Landing = () => {
           </div>
 
           {/* CTA Section */}
-          <div className="text-center backdrop-blur-xl bg-gradient-to-r from-white/5 to-white/10 rounded-3xl border border-white/20 p-16 shadow-2xl">
+          <div className="text-center backdrop-blur-xl bg-gradient-to-r from-white/5 to-white/10 rounded-3xl border border-white/20 p-16 shadow-2xl animate-on-scroll">
             <div className="max-w-4xl mx-auto">
               <div className="flex justify-center mb-8">
                 <div className="flex items-center space-x-2">
@@ -432,7 +494,7 @@ const Landing = () => {
           </div>
 
           {/* Footer */}
-          <footer className="mt-24 pt-12 border-t border-white/10">
+          <footer className="mt-24 pt-12 border-t border-white/10 animate-on-scroll">
             <div className="text-center text-gray-400">
               <p className="text-lg">© 2024 SuiConn. Revolutionizing blockchain social payments.</p>
               <div className="flex justify-center space-x-8 mt-6">
@@ -444,7 +506,7 @@ const Landing = () => {
           </footer>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

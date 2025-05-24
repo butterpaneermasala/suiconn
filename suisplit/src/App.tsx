@@ -4,7 +4,7 @@ import { useWallet, ConnectButton } from "@suiet/wallet-kit";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import type { SuiParsedData } from '@mysten/sui/client';
 import { formatAddress } from "@mysten/sui/utils";
-import { Toaster } from "sonner";
+// import { Toaster } from "sonner";
 
 // UI Components
 import { Button } from "./components/ui/button";
@@ -24,12 +24,12 @@ import {
   Refresh as RefreshIcon,
   History as HistoryIcon,
   BatchPrediction as BatchIcon,
-  TrendingUp as TrendingUpIcon,
+  // TrendingUp as TrendingUpIcon,
   Group as UsersIcon,
   AccountBalanceWallet as WalletIcon,
   Security as ShieldIcon,
-  ArrowRight as ArrowUpRightIcon,
-  AccessTime as ClockIcon,
+  // ArrowRight as ArrowUpRightIcon,
+  // AccessTime as ClockIcon,
   Timeline as ActivityIcon
 } from '@mui/icons-material';
 
@@ -248,7 +248,7 @@ export default function FriendListApp() {
         const newHistory = history.map((item: any) => {
           const timestamp = Number(item.fields.timestamp);
           return {
-            from: item.fields.from,
+          from: item.fields.from,
             amount: Number(item.fields.amount) / 1e9,
             memo: item.fields.memo || "No memo",
             timestamp: timestamp,
@@ -512,74 +512,74 @@ export default function FriendListApp() {
     }
   };
 
-  const handleBatchPayFriends = async () => {
-    if (!friendListId || !signAndExecuteTransaction || !account) return;
+const handleBatchPayFriends = async () => {
+  if (!friendListId || !signAndExecuteTransaction || !account) return;
+  
+  // Validate inputs
+  const validPayments = batchPayments.filter(p => 
+    p.recipient && p.amount && !isNaN(parseFloat(p.amount)) && parseFloat(p.amount) > 0
+  );
+  
+  if (validPayments.length === 0) {
+    setError('Please enter valid payment details');
+    return;
+  }
+  
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const tx = new Transaction();
+    tx.setGasBudget(300000000);
     
-    // Validate inputs
-    const validPayments = batchPayments.filter(p => 
-      p.recipient && p.amount && !isNaN(parseFloat(p.amount)) && parseFloat(p.amount) > 0
-    );
+    // Calculate total amount and prepare arguments
+    const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount) * 1e9, 0);
+    const recipientAddresses = validPayments.map(p => p.recipient);
+    const paymentAmounts = validPayments.map(p => parseFloat(p.amount) * 1e9);
     
-    if (validPayments.length === 0) {
-      setError('Please enter valid payment details');
-      return;
-    }
+    // Split coins for total amount
+    const [paymentCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(totalAmount)]);
     
-    setLoading(true);
-    setError(null);
+    // Create properly typed arguments using 'elements' instead of 'objects'
+    const recipientsArg = tx.makeMoveVec({
+      elements: recipientAddresses.map(addr => tx.pure.address(addr)),
+      type: 'address',
+    });
     
-    try {
-      const tx = new Transaction();
-      tx.setGasBudget(300000000);
-      
-      // Calculate total amount and prepare arguments
-      const totalAmount = validPayments.reduce((sum, p) => sum + parseFloat(p.amount) * 1e9, 0);
-      const recipientAddresses = validPayments.map(p => p.recipient);
-      const paymentAmounts = validPayments.map(p => parseFloat(p.amount) * 1e9);
-      
-      // Split coins for total amount
-      const [paymentCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(totalAmount)]);
-      
-      // Create properly typed arguments using 'elements' instead of 'objects'
-      const recipientsArg = tx.makeMoveVec({
-        elements: recipientAddresses.map(addr => tx.pure.address(addr)),
-        type: 'address',
-      });
-      
-      const amountsArg = tx.makeMoveVec({
-        elements: paymentAmounts.map(amount => tx.pure.u64(amount)),
-        type: 'u64',
-      });
-      
-      // Call batch_pay_friends_simple
-      tx.moveCall({
-        target: `${PACKAGE_ID}::friend_list::batch_pay_friends_simple`,
-        arguments: [
-          tx.object(friendListId),
-          recipientsArg,
-          amountsArg,
-          tx.pure.string(batchMemo),
-          paymentCoin,
-        ],
-      });
-      
-      const response = await signAndExecuteTransaction({ transaction: tx });
-      await suiClient.waitForTransaction({
-        digest: response.digest,
-        timeout: 20000,
-        pollInterval: 1000,
-      });
-      
-      setSuccess(`Successfully sent batch payments to ${validPayments.length} friends!`);
-      handleCloseBatchDialog();
-      await fetchFriends();
+    const amountsArg = tx.makeMoveVec({
+      elements: paymentAmounts.map(amount => tx.pure.u64(amount)),
+      type: 'u64',
+    });
+    
+    // Call batch_pay_friends_simple
+    tx.moveCall({
+      target: `${PACKAGE_ID}::friend_list::batch_pay_friends_simple`,
+      arguments: [
+        tx.object(friendListId),
+        recipientsArg,
+        amountsArg,
+        tx.pure.string(batchMemo),
+        paymentCoin,
+      ],
+    });
+    
+    const response = await signAndExecuteTransaction({ transaction: tx });
+    await suiClient.waitForTransaction({
+      digest: response.digest,
+      timeout: 20000,
+      pollInterval: 1000,
+    });
+    
+    setSuccess(`Successfully sent batch payments to ${validPayments.length} friends!`);
+    handleCloseBatchDialog();
+    await fetchFriends();
       await fetchAllPaymentHistory();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch payment failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Batch payment failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (success) {
@@ -635,9 +635,9 @@ export default function FriendListApp() {
                 </CardDescription>
               </div>
               <div className="flex gap-4">
-                <ConnectButton />
+            <ConnectButton />
                 {connected && (
-                  <Button
+            <Button
                     variant="outline"
                     onClick={() => {
                       disconnect();
@@ -647,7 +647,7 @@ export default function FriendListApp() {
                     className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                   >
                     Disconnect
-                  </Button>
+            </Button>
                 )}
               </div>
             </div>
@@ -720,27 +720,27 @@ export default function FriendListApp() {
                     <input
                       type="text"
                       placeholder="Friend's Address"
-                      value={friendAddress}
-                      onChange={(e) => setFriendAddress(e.target.value)}
+                    value={friendAddress}
+                    onChange={(e) => setFriendAddress(e.target.value)}
                       className="flex-1 px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white placeholder-gray-400 backdrop-blur-xl"
                     />
                     <input
                       type="text"
                       placeholder="Friend's Name"
-                      value={friendName}
-                      onChange={(e) => setFriendName(e.target.value)}
+                    value={friendName}
+                    onChange={(e) => setFriendName(e.target.value)}
                       className="flex-1 px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white placeholder-gray-400 backdrop-blur-xl"
-                    />
-                    <Button
-                      onClick={handleAddFriend}
+                  />
+                  <Button
+                    onClick={handleAddFriend}
                       disabled={loading || !friendAddress || !friendName}
                       className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl"
-                    >
+                  >
                       <AddIcon /> Add Friend
-                    </Button>
+                  </Button>
                   </div>
                 </CardContent>
-              </Card>
+            </Card>
 
               {/* Friends List */}
               <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl">
@@ -753,7 +753,7 @@ export default function FriendListApp() {
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button
+                  <Button
                         variant="outline"
                         onClick={handleOpenBatchDialog}
                         disabled={friends.length === 0}
@@ -763,12 +763,12 @@ export default function FriendListApp() {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={fetchFriends}
-                        disabled={loading}
+                    onClick={fetchFriends}
+                    disabled={loading}
                         className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl"
-                      >
+                  >
                         <RefreshIcon /> Refresh
-                      </Button>
+                  </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -785,14 +785,14 @@ export default function FriendListApp() {
                               </p>
                             </div>
                             <div className="flex gap-2">
-                              <Button
+                  <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenPaymentDialog(friend)}
                                 className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl"
                               >
                                 <PaymentIcon /> Pay
-                              </Button>
+                  </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -801,14 +801,14 @@ export default function FriendListApp() {
                               >
                                 <HistoryIcon /> History
                               </Button>
-                              <Button
+                            <Button
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => handleRemoveFriend(friend.addr, friend.name)}
                                 className="rounded-xl"
                               >
                                 <DeleteIcon /> Remove
-                              </Button>
+                            </Button>
                             </div>
                           </div>
                         </CardContent>
@@ -877,11 +877,11 @@ export default function FriendListApp() {
                       <div className="flex flex-col items-center gap-2">
                         <RefreshIcon className="w-6 h-6" />
                         <span>Refresh List</span>
-                      </div>
+                    </div>
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
+            </Card>
 
               {/* Security Status */}
               <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl">
@@ -929,7 +929,7 @@ export default function FriendListApp() {
           </Card>
         )}
 
-        {/* Payment Dialog */}
+      {/* Payment Dialog */}
         {paymentDialogOpen && selectedFriend && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <Card className="w-full max-w-md backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
@@ -944,9 +944,9 @@ export default function FriendListApp() {
                   <div>
                     <label className="text-sm font-medium text-white">Amount (SUI)</label>
                     <input
-                      type="number"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
+              type="number"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
                       className="w-full px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white mt-1 backdrop-blur-xl"
                     />
                   </div>
@@ -954,15 +954,15 @@ export default function FriendListApp() {
                     <label className="text-sm font-medium text-white">Memo</label>
                     <input
                       type="text"
-                      value={paymentMemo}
-                      onChange={(e) => setPaymentMemo(e.target.value)}
+              value={paymentMemo}
+              onChange={(e) => setPaymentMemo(e.target.value)}
                       className="w-full px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white mt-1 backdrop-blur-xl"
                     />
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
-                <Button
+          <Button
                   variant="outline"
                   onClick={handleClosePaymentDialog}
                   className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl"
@@ -970,18 +970,18 @@ export default function FriendListApp() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={handlePayFriend}
+            onClick={handlePayFriend}
                   disabled={loading || !paymentAmount}
                   className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl"
-                >
-                  Send Payment
-                </Button>
+          >
+            Send Payment
+          </Button>
               </CardFooter>
             </Card>
           </div>
         )}
 
-        {/* History Dialog */}
+      {/* History Dialog */}
         {historyDialogOpen && selectedFriend && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <Card className="w-full max-w-2xl backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
@@ -1024,10 +1024,10 @@ export default function FriendListApp() {
                 </Button>
               </CardFooter>
             </Card>
-          </div>
-        )}
+                </div>
+          )}
 
-        {/* Batch Payment Dialog */}
+      {/* Batch Payment Dialog */}
         {batchDialogOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <Card className="w-full max-w-2xl backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
@@ -1039,25 +1039,25 @@ export default function FriendListApp() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {batchPayments.map((payment, index) => (
+            {batchPayments.map((payment, index) => (
                     <div key={index} className="flex gap-4">
                       <select
-                        value={payment.recipient}
-                        onChange={(e) => handleBatchPaymentChange(index, 'recipient', e.target.value)}
+                    value={payment.recipient}
+                    onChange={(e) => handleBatchPaymentChange(index, 'recipient', e.target.value)}
                         className="flex-1 px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white backdrop-blur-xl"
-                      >
+                  >
                         <option value="">Select Friend</option>
-                        {friends.map((friend) => (
-                          <option key={friend.addr} value={friend.addr}>
-                            {friend.name} ({formatAddress(friend.addr)})
-                          </option>
-                        ))}
+                    {friends.map((friend) => (
+                      <option key={friend.addr} value={friend.addr}>
+                        {friend.name} ({formatAddress(friend.addr)})
+                      </option>
+                    ))}
                       </select>
                       <input
-                        type="number"
+                    type="number"
                         placeholder="Amount (SUI)"
-                        value={payment.amount}
-                        onChange={(e) => handleBatchPaymentChange(index, 'amount', e.target.value)}
+                    value={payment.amount}
+                    onChange={(e) => handleBatchPaymentChange(index, 'amount', e.target.value)}
                         className="flex-1 px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white placeholder-gray-400 backdrop-blur-xl"
                       />
                       {index > 0 && (
@@ -1072,26 +1072,26 @@ export default function FriendListApp() {
                       )}
                     </div>
                   ))}
-                  <Button
+              <Button
                     variant="outline"
-                    onClick={addBatchPaymentField}
+                onClick={addBatchPaymentField}
                     className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl"
-                  >
+              >
                     <AddIcon /> Add Recipient
-                  </Button>
+              </Button>
                   <div>
                     <label className="text-sm font-medium text-white">Memo</label>
                     <input
                       type="text"
-                      value={batchMemo}
-                      onChange={(e) => setBatchMemo(e.target.value)}
+              value={batchMemo}
+              onChange={(e) => setBatchMemo(e.target.value)}
                       className="w-full px-4 py-2 rounded-xl border border-white/20 bg-white/5 text-white mt-1 backdrop-blur-xl"
                     />
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
-                <Button
+          <Button
                   variant="outline"
                   onClick={handleCloseBatchDialog}
                   className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-xl"
@@ -1099,12 +1099,12 @@ export default function FriendListApp() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleBatchPayFriends}
+            onClick={handleBatchPayFriends}
                   disabled={loading || batchPayments.some(p => !p.recipient || !p.amount)}
                   className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-xl"
-                >
+          >
                   Send Payments
-                </Button>
+          </Button>
               </CardFooter>
             </Card>
           </div>
