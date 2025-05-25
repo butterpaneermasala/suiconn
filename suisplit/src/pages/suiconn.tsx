@@ -32,7 +32,8 @@ import {
   Security as ShieldIcon,
   // ArrowRight as ArrowUpRightIcon,
   // AccessTime as ClockIcon,
-  Timeline as ActivityIcon
+  Timeline as ActivityIcon,
+  AutoAwesome
 } from '@mui/icons-material';
 
 const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
@@ -337,30 +338,30 @@ export default function FriendListApp() {
     }
   };
 
-  // const createFriendList = async () => {
-  //   if (!account?.address || !signAndExecuteTransaction) return;
-  //   setLoading(true);
-  //   setError(null);
-  //   try {
-  //     const tx = new Transaction();
-  //     tx.moveCall({
-  //       target: `${PACKAGE_ID}::friend_list::create`,
-  //       arguments: [tx.object(REGISTRY_OBJECT_ID)],
-  //     });
-  //     const response = await signAndExecuteTransaction({ transaction: tx });
-  //     await suiClient.waitForTransaction({
-  //       digest: response.digest,
-  //       timeout: 15000,
-  //       pollInterval: 1000,
-  //     });
-  //     setSuccess("Friend list created successfully!");
-  //     await fetchFriendListId();
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Creation failed');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  const createFriendList = async () => {
+    if (!account?.address || !signAndExecuteTransaction) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::friend_list::create`,
+        arguments: [tx.object(REGISTRY_OBJECT_ID)],
+      });
+      const response = await signAndExecuteTransaction({ transaction: tx });
+      await suiClient.waitForTransaction({
+        digest: response.digest,
+        timeout: 15000,
+        pollInterval: 1000,
+      });
+      setSuccess("Friend list created successfully!");
+      await fetchFriendListId();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Creation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddFriend = async () => {
     if (!friendListId || !friendAddress || !friendName || !signAndExecuteTransaction) return;
@@ -659,6 +660,31 @@ const handleBatchPayFriends = async () => {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Add this after the header section and before the main content */}
+        {connected && !friendListId && !loading && (
+          <Card className="mb-8 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl animate-on-scroll">
+            <CardContent className="p-8 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
+                  <UsersIcon className="w-10 h-10 text-cyan-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-4">Create Your Friend List</h2>
+                <p className="text-gray-300 mb-8">
+                  You need to create a friend list before you can start adding friends and making payments.
+                  This is a one-time setup that will be stored on the blockchain.
+                </p>
+                <Button
+                  onClick={createFriendList}
+                  className="w-full sm:w-auto text-lg px-8 py-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold"
+                >
+                  <AutoAwesome className="mr-3 w-6 h-6" />
+                  Create Friend List
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {connected ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
