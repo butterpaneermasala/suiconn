@@ -1,0 +1,728 @@
+/* Modern Glassmorphic UI Styles - Refined */
+:root {
+  --primary: #7F5AF0; /* Slightly adjusted primary for better contrast */
+  --primary-light: #9B7AF0;
+  --secondary: #2CB67D;
+  --danger: #EF4565;
+  --warning: #F48C06;
+  --text: #171717; /* Darker text for readability */
+  --text-light: #72757E;
+  --background: #F5F6FA; /* Not directly used for background, but kept for reference */
+  --glass-bg: rgba(255, 255, 255, 0.15); /* Increased transparency */
+  --glass-border: rgba(255, 255, 255, 0.2); /* Lighter border */
+  --glass-shadow: rgba(0, 0, 0, 0.1); /* Softer shadow */
+    --card-bg-opaque: #ffffff; /* Fallback for non-glassmorphic elements or specific cards */
+    --gradient-start: #892FD0; /* New background gradient colors */
+    --gradient-end: #5A4EF0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%); /* Use new gradient colors */
+    min-height: 100vh;
+    padding: 20px;
+  color: var(--text);
+    display: flex; /* Use flexbox for centering content */
+    justify-content: center;
+    align-items: flex-start; /* Align to top */
+}
+
+.container {
+  max-width: 480px;
+    width: 100%; /* Ensure container takes full width on smaller screens */
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    padding: 0 10px; /* Add some horizontal padding */
+}
+
+/* --- General Glassmorphic Styles --- */
+
+/* Cards */
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px); /* Increased blur significantly */
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px; /* Slightly smaller border radius */
+  border: 1px solid var(--glass-border);
+  padding: 25px; /* Increased padding */
+  margin-bottom: 20px;
+  box-shadow: 0 5px 15px var(--glass-shadow); /* Softer shadow */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    color: var(--text); /* Ensure text color is set */
+}
+
+.card:hover {
+    transform: translateY(-5px);
+  box-shadow: 0 10px 20px var(--glass-shadow); /* Slightly larger shadow on hover */
+}
+
+/* Header Styles */
+.wallet-header {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 20px 25px; /* Adjusted padding */
+  margin-bottom: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 5px 15px var(--glass-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wallet-header h1 {
+  font-size: 22px; /* Slightly smaller font size */
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Slightly smaller gap */
+}
+
+/* Form Elements */
+.input {
+  width: 100%;
+  padding: 14px 16px; /* Adjusted padding */
+  border-radius: 10px; /* Slightly smaller border radius */
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.1); /* Slightly less opaque input background */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+    font-size: 16px;
+  color: var(--text);
+  margin-bottom: 15px; /* Adjusted margin */
+  transition: all 0.3s ease;
+    ::placeholder {
+        color: var(--text-light);
+        opacity: 0.7; /* Slightly less opaque placeholder */
+    }
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(127, 90, 240, 0.2); /* Use adjusted primary color with opacity */
+  background: rgba(255, 255, 255, 0.2); /* More opaque on focus */
+}
+
+/* Buttons */
+.button {
+  width: 100%;
+  padding: 14px 20px; /* Adjusted padding */
+  border-radius: 10px; /* Slightly smaller border radius */
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 15px; /* Adjusted margin */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  gap: 8px;
+    color: white; /* Default button text color */
+}
+
+.button:disabled {
+    opacity: 0.5; /* Increased disabled opacity */
+    cursor: not-allowed;
+}
+
+.primaryButton {
+  background: var(--primary);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.successButton {
+  background: var(--secondary);
+}
+
+.successButton:hover:not(:disabled) {
+    background: #34C788; /* Slightly lighter green */
+    transform: translateY(-2px);
+}
+
+
+.dangerButton {
+  background: var(--danger);
+}
+
+.dangerButton:hover:not(:disabled) {
+    background: #FF5A78; /* Slightly lighter red */
+    transform: translateY(-2px);
+}
+
+.warningButton {
+  background: var(--warning);
+  color: var(--text);
+}
+
+.warningButton:hover:not(:disabled) {
+    background: #FF9D2B; /* Slightly lighter yellow */
+    transform: translateY(-2px);
+}
+
+
+.smallButton {
+  padding: 8px 14px; /* Adjusted padding */
+  font-size: 13px; /* Slightly smaller font size */
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+
+/* Tab Navigation */
+.tabContainer {
+  display: flex;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 15px; /* Slightly smaller radius */
+  padding: 6px; /* Reduced padding */
+  margin-bottom: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px var(--glass-shadow); /* Softer shadow */
+}
+
+.tab {
+  flex: 1;
+  padding: 10px; /* Adjusted padding */
+  text-align: center;
+    cursor: pointer;
+  border-radius: 10px; /* Slightly smaller radius */
+    transition: all 0.3s ease;
+}
+
+.activeTab {
+  background: var(--primary);
+  color: white;
+}
+
+.inactiveTab {
+  color: var(--text-light);
+  background: transparent;
+}
+
+.tab-label {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.tab-title {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Cards for Different States */
+.friendCard, .requestCard, .splitCard, .historyCard, .batchCard {
+    background: var(--glass-bg); /* Use base glass background */
+    backdrop-filter: blur(20px); /* Consistent blur */
+  -webkit-backdrop-filter: blur(20px);
+    padding: 18px; /* Adjusted padding */
+    margin-bottom: 15px; /* Adjusted margin */
+    border-radius: 15px; /* Consistent radius */
+    border: 1px solid var(--glass-border); /* Consistent border */
+    transition: all 0.3s ease;
+    color: var(--text); /* Ensure text color is set */
+}
+
+.friendCard:hover, .requestCard:hover, .splitCard:hover, .historyCard:hover, .batchCard:hover {
+    transform: translateY(-3px); /* Slightly more pronounced hover effect */
+    box-shadow: 0 6px 18px var(--glass-shadow); /* Adjusted shadow on hover */
+}
+
+/* Specific card color tints - more subtle */
+.requestCard {
+    background: rgba(255, 243, 205, 0.2); /* Light yellow tint with more transparency */
+}
+
+.splitCard {
+    background: rgba(231, 245, 255, 0.3); /* Light blue tint with more transparency */
+}
+
+.historyCard.outgoing {
+    background: rgba(255, 243, 205, 0.2); /* Light yellow tint for outgoing */
+}
+
+.historyCard.incoming {
+    background: rgba(212, 237, 218, 0.2); /* Light green tint for incoming */
+}
+
+.batchCard {
+    background: rgba(255, 248, 225, 0.2); /* Light orange tint */
+}
+
+
+/* Status Messages */
+.status-message {
+  position: fixed;
+  bottom: 20px; /* Adjusted position */
+  left: 10px;
+  right: 10px; /* Full width on smaller screens */
+  padding: 14px 20px; /* Adjusted padding */
+  border-radius: 10px; /* Adjusted radius */
+  background: var(--glass-bg);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px var(--glass-shadow);
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+    color: var(--text); /* Default text color */
+    text-align: center;
+}
+
+.status-message.error {
+  background: rgba(239, 69, 101, 0.8); /* Use adjusted danger color */
+  color: white;
+    border-color: rgba(180, 40, 55, 0.9);
+}
+
+.status-message.success {
+  background: rgba(44, 182, 125, 0.8); /* Use adjusted secondary color */
+  color: white;
+    border-color: rgba(30, 130, 50, 0.9);
+}
+
+.status-message.loading {
+  background: rgba(127, 90, 240, 0.8); /* Use adjusted primary color */
+    color: white;
+    border-color: rgba(0, 90, 200, 0.9);
+}
+
+/* Modals */
+.modal, .friendSelector {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7); /* Darker overlay */
+  backdrop-filter: blur(10px); /* Slightly less blur for overlay */
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+    display: flex;
+    align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modalContent, .friendSelectorContent {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px); /* Consistent blur with cards */
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 25px; /* Increased padding */
+  width: 100%;
+  max-width: 450px; /* Slightly smaller max width */
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px var(--glass-shadow);
+}
+
+
+/* --- Utility Classes --- */
+
+.flex {
+  display: flex;
+  gap: 15px; /* Increased gap */
+  align-items: center;
+}
+
+.flexColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Increased gap */
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px; /* Increased gap */
+}
+
+.center {
+  text-align: center;
+}
+
+.bold {
+  font-weight: 600;
+    color: var(--text);
+}
+
+.italic {
+  font-style: italic;
+    color: var(--text-light);
+}
+
+.small {
+  font-size: 13px; /* Slightly smaller font size */
+  color: var(--text-light);
+}
+
+.small-margin-top {
+  margin-top: 15px; /* Increased margin */
+}
+
+/* --- Animations --- */
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+/* Shimmer effect for cards */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.05), /* Reduced shimmer opacity */
+        transparent
+    );
+    background-size: 200px 100%;
+    animation: shimmer 3s infinite;
+    pointer-events: none;
+}
+
+
+/* --- Responsive Design --- */
+@media (max-width: 480px) {
+  .container {
+    padding: 0 10px;
+}
+
+.card {
+  padding: 20px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+}
+
+.button {
+    padding: 12px;
+  }
+
+  .tab-label {
+    font-size: 18px;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Floating Background Shapes */
+.floating-shapes {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden; /* Prevent shapes from overflowing */
+}
+
+.shape {
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    animation: float 8s ease-in-out infinite; /* Slightly slower animation */
+}
+
+.shape-1 {
+    width: 120px; /* Increased size */
+    height: 120px; /* Increased size */
+    top: 15%; /* Adjusted position */
+    left: 15%; /* Adjusted position */
+    animation-delay: 0s;
+}
+
+.shape-2 {
+    width: 180px; /* Increased size */
+    height: 180px; /* Increased size */
+    top: 50%; /* Adjusted position */
+    right: 15%; /* Adjusted position */
+    animation-delay: 2s;
+}
+
+.shape-3 {
+    width: 100px; /* Increased size */
+    height: 100px; /* Increased size */
+    top: 25%; /* Adjusted position */
+    right: 10%; /* Adjusted position */
+    animation-delay: 4s;
+}
+
+.shape-4 {
+    width: 150px; /* Increased size */
+    height: 150px; /* Increased size */
+    bottom: 15%; /* Adjusted position */
+    left: 20%; /* Adjusted position */
+    animation-delay: 1s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    50% {
+        transform: translateY(-30px) rotate(180deg); /* More pronounced float */
+    }
+}
+
+
+/* Custom Additions for SuiConn - Consolidating relevant styles here */
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text);
+  margin: 0 0 15px 0;
+}
+
+
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+
+.friendSelectorContent h3,
+.modalContent h3 {
+    margin: 0 0 15px 0;
+    color: var(--text);
+}
+
+.friendSelectorContent .button,
+.modalContent .button {
+    margin-top: 10px;
+}
+
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  padding: 12px; /* Adjusted padding */
+  border-radius: 8px;
+  margin-bottom: 8px; /* Adjusted margin */
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1); /* Light glass background */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: background-color 0.2s ease;
+}
+
+.checkboxItem:hover {
+    background: rgba(255, 255, 255, 0.25); /* Slightly more opaque on hover */
+}
+
+.friendSelector input[type="checkbox"],
+.friendSelector input[type="radio"] {
+  margin-right: 10px;
+}
+
+.friendSelector .checkboxItem.selected {
+    background: rgba(127, 90, 240, 0.4); /* Use adjusted primary color with more opacity */
+    border-color: rgba(127, 90, 240, 0.6);
+}
+
+
+/* Specific element styling adjustments */
+
+.splitCard .background {
+    background: rgba(255, 255, 255, 0.1); /* Light glass background */
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.splitCard .background .bold {
+    margin: 0 0 5px 0;
+}
+
+.splitCard .split-paid-indicator {
+    background: rgba(44, 182, 125, 0.8); /* Use adjusted secondary color */
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    margin-top: 5px;
+    border: 1px solid rgba(30, 130, 50, 0.9);
+}
+
+.split-creator-indicator {
+    background: rgba(127, 90, 240, 0.8); /* Use adjusted primary color */
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    margin-top: 5px;
+    border: 1px solid rgba(0, 90, 200, 0.9);
+}
+
+.payment-form-flex input.input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.payment-form-flex .smallButton {
+    min-width: 80px;
+}
+
+.split-type-selector {
+    margin-bottom: 15px; /* Added margin below selector */
+}
+
+.split-type-selector .smallButton {
+    flex: 1;
+}
+
+.split-type-selector .smallButton.inactive {
+    background: rgba(255, 255, 255, 0.1); /* Light glass background */
+    color: var(--text-light);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.split-type-selector .smallButton.inactive:hover {
+     background: rgba(255, 255, 255, 0.25);
+}
+
+.split-participants-flex input.input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.split-participants-flex .smallButton {
+    min-width: 80px;
+}
+
+.small-margin-top {
+    margin-top: 15px;
+}
+
+/* Ensure text in cards is readable */
+.card p, .card h3, .card strong, .card span {
+    color: var(--text);
+}
+
+.card .small {
+    color: var(--text-light);
+}
+
+.historyCard.outgoing p, .historyCard.incoming p {
+    color: var(--text);
+}
+
+.historyCard.outgoing .small, .historyCard.incoming .small {
+     color: var(--text-light);
+}
+
+.splitCard .background p {
+     color: var(--text);
+}
+
+.splitCard .background .small {
+    color: var(--text-light);
+}
+
+/* Adjust specific element spacing within cards */
+.card .grid p {
+    margin-bottom: 5px; /* Add some space below paragraphs in grid */
+}
+
+.card .grid p:last-child {
+    margin-bottom: 0; /* Remove bottom margin for the last paragraph in grid */
+}
+
+.splitCard .splitCard {
+    margin-top: 15px; /* Add margin between nested split cards (overview) */
+    margin-bottom: 0; /* Remove default bottom margin */
+}
+
+.splitCard .splitCard:first-child {
+     margin-top: 0; /* No top margin for the first nested split card */
+}
+
+.friendCard .flexColumn .smallButton {
+    margin-bottom: 5px; /* Add space between buttons in friend card */
+}
+
+.friendCard .flexColumn .smallButton:last-child {
+    margin-bottom: 0; /* Remove bottom margin for the last button */
+}
+
+.modalContent .button, .friendSelectorContent .button {
+    margin-top: 15px; /* Adjusted margin */
+}
+
+.batchCard .flex .smallButton {
+    margin-bottom: 0;
+}
+
+.batchCard .flex h4 {
+    margin: 0;
+}
+
+/* Add some padding/gap to the main container */
+.container > div {
+    margin-bottom: 20px; /* Add space between top-level sections */
+}
+
+.container > div:last-child {
+     margin-bottom: 0; /* No bottom margin for the last section */
+} 

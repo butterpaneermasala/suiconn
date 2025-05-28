@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet, ConnectButton } from "@suiet/wallet-kit";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
@@ -9,8 +9,10 @@ const USER_PROFILES_TABLE_ID = '0x6d4114ff53d3fb8352d0a40638aaccbf58b3833b06f981
 const FRIEND_REQUESTS_TABLE_ID = '0xcfe84647c1b2c4a23dad88e77846552b995c417c7b0b5d8ef36fb7f112ad8610';
 const SPLIT_PAYMENTS_TABLE_ID = '0x2e43a39d74678a277ec75e5557c0290b585c8cad25677f4e239b1c61c30ecc4d';
 const PAYMENT_HISTORY_TABLE_ID = '0x4eb7d1fa28011028dfa5337d708dee756a6a0d84b7408e552806f0fa778e1499';
+const USERNAME_REGISTRY_TABLE_ID = '0xcf30d3fdd6fb90502f3e4e06f10505485c1459d3f69ca2eeab8703fa4efd7d80';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
+// Interfaces remain the same
 interface UserProfile {
   username: string;
   address: string;
@@ -73,6 +75,73 @@ interface PaymentRecord {
   toUsername?: string;
 }
 
+interface BatchPayment {
+  recipients: string[];
+  amounts: string[];
+  memos: string[];
+}
+
+// SVG Icons Components
+const UserIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const FriendsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const PaymentIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6312 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6312 13.6815 18 14.5717 18 15.5C18 16.4283 17.6312 17.3185 16.9749 17.9749C16.3185 18.6312 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const SplitIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V18C20 18.5304 19.7893 19.0391 19.4142 19.4142C19.0391 19.7893 18.5304 20 18 20H6C5.46957 20 4.96086 19.7893 4.58579 19.4142C4.21071 19.0391 4 18.5304 4 18V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M15 2H9C8.44772 2 8 2.44772 8 3V5C8 5.55228 8.44772 6 9 6H15C15.5523 6 16 5.55228 16 5V3C16 2.44772 15.5523 2 15 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 9H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 13H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 17L12 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const HistoryIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 export default function SuiConnApp() {
   const { signAndExecuteTransaction, account, connected } = useWallet();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -83,7 +152,9 @@ export default function SuiConnApp() {
   const [friendsList, setFriendsList] = useState<Friend[]>([]);
   const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
   const [transactionHistory, setTransactionHistory] = useState<PaymentRecord[]>([]);
+  const [friendTransactionHistory, setFriendTransactionHistory] = useState<{[key: string]: PaymentRecord[]}>({});
   const [activeTab, setActiveTab] = useState('profile');
+  const [selectedFriendForHistory, setSelectedFriendForHistory] = useState<string | null>(null);
 
   // Form states
   const [username, setUsername] = useState('');
@@ -99,174 +170,255 @@ export default function SuiConnApp() {
   const [showFriendSelector, setShowFriendSelector] = useState(false);
   const [friendSelectorFor, setFriendSelectorFor] = useState('');
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
+  
+  // Batch payment states
+  const [batchPayments, setBatchPayments] = useState<BatchPayment[]>([{ recipients: [''], amounts: [''], memos: [''] }]);
+  const [showBatchPayment, setShowBatchPayment] = useState(false);
 
-  // Mobile styles
-  const mobileStyles = {
+  // Enhanced glassmorphism styles
+  const glassStyles = {
     container: {
-      padding: '10px',
-      fontFamily: 'Arial, sans-serif',
-      maxWidth: '100%',
-      margin: '0 auto',
-      backgroundColor: '#f8f9fa',
-      minHeight: '100vh'
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      padding: '20px',
+      position: 'relative' as const,
+      overflow: 'hidden'
+    },
+    backgroundEffect: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: `
+        radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 60%, rgba(119, 198, 255, 0.3) 0%, transparent 50%)
+      `,
+      animation: 'float 6s ease-in-out infinite'
     },
     header: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '20px',
+      padding: '20px',
+      marginBottom: '30px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      position: 'relative' as const,
+      zIndex: 10,
+      gap: '20px',
+    },
+    logo: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: '#fff',
+      textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+      letterSpacing: '-0.5px'
+    },
+    glassCard: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '20px',
+      padding: '25px',
       marginBottom: '20px',
-      padding: '15px',
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      flexWrap: 'wrap' as const
-    },
-    title: {
-      fontSize: window.innerWidth < 768 ? '18px' : '24px',
-      fontWeight: 'bold',
-      color: '#2c3e50',
-      margin: 0
-    },
-    card: {
-      backgroundColor: '#fff',
-      padding: '20px',
-      borderRadius: '12px',
-      marginBottom: '15px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      border: 'none'
-    },
-    input: {
-      padding: '12px',
-      borderRadius: '8px',
-      border: '1px solid #ddd',
-      fontSize: '16px',
-      width: '100%',
-      marginBottom: '10px',
-      boxSizing: 'border-box' as const
-    },
-    button: {
-      padding: '12px 20px',
-      borderRadius: '8px',
-      border: 'none',
-      fontSize: '16px',
-      fontWeight: 'bold',
-      cursor: 'pointer',
-      width: '100%',
-      marginBottom: '10px',
-      transition: 'all 0.3s ease'
-    },
-    primaryButton: {
-      backgroundColor: '#007bff',
-      color: 'white'
-    },
-    successButton: {
-      backgroundColor: '#28a745',
-      color: 'white'
-    },
-    dangerButton: {
-      backgroundColor: '#dc3545',
-      color: 'white'
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      position: 'relative' as const,
+      zIndex: 10
     },
     tabContainer: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '20px',
+      padding: '8px',
       display: 'flex',
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      marginBottom: '20px',
-      overflow: 'hidden',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      marginBottom: '30px',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      position: 'relative' as const,
+      zIndex: 10
     },
     tab: {
       flex: 1,
-      padding: '15px 10px',
+      padding: '12px 8px',
       textAlign: 'center' as const,
       cursor: 'pointer',
+      borderRadius: '12px',
       fontSize: '14px',
-      fontWeight: 'bold',
-      transition: 'all 0.3s ease'
+      fontWeight: '500',
+      transition: 'all 0.3s ease',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'center',
+      gap: '4px'
     },
     activeTab: {
-      backgroundColor: '#007bff',
-      color: 'white'
+      background: 'rgba(255, 255, 255, 0.2)',
+      color: '#fff',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
     },
     inactiveTab: {
-      backgroundColor: '#f8f9fa',
-      color: '#6c757d'
+      color: 'rgba(255, 255, 255, 0.7)',
+      background: 'transparent'
     },
-    friendCard: {
-      backgroundColor: '#f8f9fa',
-      padding: '15px',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      border: '1px solid #e9ecef',
+    input: {
+      width: '100%',
+      padding: '15px 20px',
+      fontSize: '16px',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '12px',
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      color: '#fff',
+      marginBottom: '15px',
+      outline: 'none',
+      transition: 'all 0.3s ease',
+      '::placeholder': {
+        color: 'rgba(255, 255, 255, 0.6)'
+      }
+    },
+    button: {
+      width: '100%',
+      padding: '15px 25px',
+      fontSize: '16px',
+      fontWeight: '600',
+      border: 'none',
+      borderRadius: '12px',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
       display: 'flex',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      flexWrap: 'wrap' as const
-    },
-    requestCard: {
-      backgroundColor: '#fff3cd',
-      padding: '15px',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      border: '1px solid #ffeaa7'
-    },
-    splitCard: {
-      backgroundColor: '#e7f3ff',
-      padding: '15px',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      border: '1px solid #b3d9ff'
-    },
-    historyCard: {
-      backgroundColor: '#f8f9fa',
-      padding: '15px',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      border: '1px solid #e9ecef'
-    },
-    buttonGroup: {
-      display: 'flex',
+      justifyContent: 'center',
       gap: '10px',
-      marginTop: '10px'
+      position: 'relative' as const,
+      overflow: 'hidden',
+      marginBottom: '10px'
+    },
+    primaryButton: {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: '#fff',
+      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)'
+    },
+    successButton: {
+      background: 'linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%)',
+      color: '#fff',
+      boxShadow: '0 8px 20px rgba(86, 204, 242, 0.4)'
+    },
+    dangerButton: {
+      background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+      color: '#fff',
+      boxShadow: '0 8px 20px rgba(255, 107, 107, 0.4)'
+    },
+    warningButton: {
+      background: 'linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)',
+      color: '#fff',
+      boxShadow: '0 8px 20px rgba(254, 202, 87, 0.4)'
     },
     smallButton: {
-      padding: '8px 12px',
+      padding: '8px 16px',
       fontSize: '14px',
-      borderRadius: '6px',
-      border: 'none',
-      cursor: 'pointer',
-      fontWeight: 'bold'
+      borderRadius: '8px',
+      minWidth: 'auto',
+      width: 'auto'
     },
-    friendSelector: {
+    cardTitle: {
+      fontSize: '22px',
+      fontWeight: '700',
+      color: '#fff',
+      marginBottom: '20px',
+      textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+    },
+    cardSubtitle: {
+      fontSize: '16px',
+      color: 'rgba(255, 255, 255, 0.8)',
+      marginBottom: '15px'
+    },
+    cardText: {
+      fontSize: '14px',
+      color: 'rgba(255, 255, 255, 0.9)',
+      lineHeight: '1.5'
+    },
+    statGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      gap: '15px',
+      marginTop: '20px'
+    },
+    statCard: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '12px',
+      padding: '15px',
+      textAlign: 'center' as const
+    },
+    modal: {
       position: 'fixed' as const,
-      top: '0',
-      left: '0',
-      right: '0',
-      bottom: '0',
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.5)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
       zIndex: 1000,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px'
     },
-    friendSelectorContent: {
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      padding: '20px',
-      maxWidth: '400px',
+    modalContent: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(30px)',
+      WebkitBackdropFilter: 'blur(30px)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '20px',
+      padding: '30px',
+      maxWidth: '500px',
       width: '100%',
-      maxHeight: '80vh',
-      overflow: 'auto'
+      maxHeight: '90vh',
+      overflow: 'auto',
+      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
     },
-    checkboxItem: {
+    notification: {
+      position: 'fixed' as const,
+      bottom: '20px',
+      right: '20px',
+      left: '20px',
+      maxWidth: '400px',
+      margin: '0 auto',
+      padding: '15px 20px',
+      borderRadius: '12px',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+      zIndex: 1000,
       display: 'flex',
       alignItems: 'center',
-      padding: '10px',
-      borderRadius: '8px',
-      marginBottom: '5px',
-      cursor: 'pointer',
-      backgroundColor: '#f8f9fa'
+      gap: '10px',
+      color: '#fff',
+      fontSize: '14px',
+      fontWeight: '500'
+    },
+    successNotification: {
+      background: 'rgba(86, 204, 242, 0.2)'
+    },
+    errorNotification: {
+      background: 'rgba(255, 107, 107, 0.2)'
+    },
+    loadingNotification: {
+      background: 'rgba(102, 126, 234, 0.2)'
     }
   };
 
@@ -344,7 +496,7 @@ export default function SuiConnApp() {
         setUsername(profile.username);
       }
     } catch (err) {
-      console.error('❌ Failed to load profile:', err);
+      console.error('Failed to load profile:', err);
       setUserProfile(null);
     } finally {
       setLoading(false);
@@ -367,7 +519,6 @@ export default function SuiConnApp() {
         const fields = entry.data.content.fields as any;
         const historyArray = fields.value || [];
         
-        // Add usernames to transaction history
         const historyWithUsernames = await Promise.all(
           historyArray.map(async (record: any) => ({
             id: record.fields.id,
@@ -384,12 +535,22 @@ export default function SuiConnApp() {
           }))
         );
         
-        // Sort by timestamp (newest first)
         historyWithUsernames.sort((a, b) => b.timestamp - a.timestamp);
         setTransactionHistory(historyWithUsernames);
+        
+        // Group by friends for individual friend history
+        const friendHistory: {[key: string]: PaymentRecord[]} = {};
+        historyWithUsernames.forEach(record => {
+          const friendAddress = record.from === account.address ? record.to : record.from;
+          if (!friendHistory[friendAddress]) {
+            friendHistory[friendAddress] = [];
+          }
+          friendHistory[friendAddress].push(record);
+        });
+        setFriendTransactionHistory(friendHistory);
       }
     } catch (err) {
-      console.error('❌ Failed to load transaction history:', err);
+      console.error('Failed to load transaction history:', err);
       setTransactionHistory([]);
     }
   };
@@ -443,14 +604,14 @@ export default function SuiConnApp() {
               });
             }
           }
-        } catch (err) {
+    } catch (err) {
           console.error('Error fetching split payment:', err);
         }
       }
 
       setSplitPayments(userSplitPayments);
     } catch (err) {
-      console.error('❌ Failed to load split payments:', err);
+      console.error('Failed to load split payments:', err);
       setSplitPayments([]);
     }
   };
@@ -532,6 +693,7 @@ export default function SuiConnApp() {
       setFriendsList([]);
       setSplitPayments([]);
       setTransactionHistory([]);
+      setFriendTransactionHistory({});
     }
   }, [connected, account?.address]);
 
@@ -600,8 +762,32 @@ export default function SuiConnApp() {
       if (selectedFriends.length === 1) {
         setPaymentRecipient(selectedFriends[0]);
       }
+    } else if (friendSelectorFor === 'batch') {
+      const newBatch = selectedFriends.map(friend => ({
+        recipients: [friend],
+        amounts: [''],
+        memos: ['']
+      }));
+      setBatchPayments(newBatch);
     }
     closeFriendSelector();
+  };
+
+  // Batch payment functions
+  const addBatchPaymentRow = () => {
+    setBatchPayments([...batchPayments, { recipients: [''], amounts: [''], memos: [''] }]);
+  };
+
+  const removeBatchPaymentRow = (index: number) => {
+    if (batchPayments.length > 1) {
+      setBatchPayments(batchPayments.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateBatchPayment = (index: number, field: keyof BatchPayment, value: string[]) => {
+    const updated = [...batchPayments];
+    updated[index] = { ...updated[index], [field]: value };
+    setBatchPayments(updated);
   };
 
   // Contract functions
@@ -672,6 +858,36 @@ export default function SuiConnApp() {
     }, 'Payment sent successfully!');
   };
 
+  // Batch payment execution
+  const handleBatchPayment = () => {
+    const validPayments = batchPayments.filter(payment => 
+      payment.recipients[0] && payment.amounts[0] && parseFloat(payment.amounts[0]) > 0
+    );
+
+    if (validPayments.length === 0) {
+      setError('Please add at least one valid payment');
+      return;
+    }
+
+    executeTransaction((tx) => {
+      validPayments.forEach(payment => {
+        const amountInMist = convertSuiToMist(payment.amounts[0]);
+        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountInMist)]);
+        tx.moveCall({
+          target: `${PACKAGE_ID}::suiconn::send_payment`,
+          arguments: [
+            tx.object(REGISTRY_OBJECT_ID),
+            tx.pure.string(payment.recipients[0]),
+            tx.pure.u64(amountInMist),
+            tx.pure.string(payment.memos[0] || 'Batch payment'),
+            coin,
+            tx.object('0x6'),
+          ],
+        });
+      });
+    }, `Batch payment sent to ${validPayments.length} recipients!`);
+  };
+
   // Enhanced split payment creation with type selection
   const handleCreateSplitPayment = () => {
     const participants = splitParticipants.split(',').map(p => p.trim()).filter(p => p);
@@ -679,20 +895,19 @@ export default function SuiConnApp() {
     if (splitType === 'equal') {
       const amountInMist = convertSuiToMist(splitAmount);
       executeTransaction((tx) => {
-        tx.moveCall({
-          target: `${PACKAGE_ID}::suiconn::create_split_payment`,
-          arguments: [
-            tx.object(REGISTRY_OBJECT_ID),
-            tx.pure.string(splitTitle),
+      tx.moveCall({
+        target: `${PACKAGE_ID}::suiconn::create_split_payment`,
+        arguments: [
+          tx.object(REGISTRY_OBJECT_ID),
+          tx.pure.string(splitTitle),
             tx.pure.u64(amountInMist),
             tx.pure.vector('string', participants),
             tx.pure.option('id', null),
-            tx.object('0x6'),
-          ],
-        });
+          tx.object('0x6'),
+        ],
+      });
       }, 'Equal split payment created!');
     } else {
-      // Custom split
       const amounts = customSplitAmounts.split(',').map(a => convertSuiToMist(a.trim())).filter(a => a > 0);
       
       if (participants.length !== amounts.length) {
@@ -750,46 +965,87 @@ export default function SuiConnApp() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
-        return (
+  return (
           <div>
             {/* User Profile Display */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>👤 Your Profile</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr', gap: '10px' }}>
-                <p style={{ margin: '5px 0' }}><strong>Username:</strong> {userProfile?.username}</p>
-                <p style={{ margin: '5px 0' }}><strong>Address:</strong> {userProfile?.address.slice(0, 6)}...{userProfile?.address.slice(-4)}</p>
-                <p style={{ margin: '5px 0' }}><strong>Friends:</strong> {friendsList.length}</p>
-                <p style={{ margin: '5px 0' }}><strong>Groups:</strong> {userProfile?.groups.length}</p>
-                <p style={{ margin: '5px 0' }}><strong>Payments Sent:</strong> {userProfile?.total_payments_sent}</p>
-                <p style={{ margin: '5px 0' }}><strong>Payments Received:</strong> {userProfile?.total_payments_received}</p>
-                <p style={{ margin: '5px 0' }}><strong>Status:</strong> {userProfile?.is_active ? '✅ Active' : '❌ Inactive'}</p>
-                <p style={{ margin: '5px 0' }}><strong>Pending Requests:</strong> {friendRequests.length}</p>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Your Profile</h3>
+              <div style={glassStyles.statGrid}>
+                <div style={glassStyles.statCard}>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                    {userProfile?.username}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Username
+                  </div>
+                </div>
+                <div style={glassStyles.statCard}>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                    {friendsList.length}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Friends
+                  </div>
+                </div>
+                <div style={glassStyles.statCard}>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                    {userProfile?.total_payments_sent}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Payments Sent
+                  </div>
+                </div>
+                <div style={glassStyles.statCard}>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                    {userProfile?.total_payments_received}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Payments Received
+                  </div>
+                </div>
               </div>
-            </div>
+              <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
+                <div style={glassStyles.cardText}>
+                  <strong>Address:</strong> {userProfile?.address.slice(0, 10)}...{userProfile?.address.slice(-8)}
+                </div>
+                <div style={glassStyles.cardText}>
+                  <strong>Status:</strong> {userProfile?.is_active ? 'Active' : 'Inactive'}
+                </div>
+                <div style={glassStyles.cardText}>
+                  <strong>Pending Requests:</strong> {friendRequests.length}
+                </div>
+              </div>
+        </div>
 
             {/* Split Payments Overview */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>🔄 Split Payments ({splitPayments.length})</h3>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Recent Split Payments</h3>
               {splitPayments.length > 0 ? (
                 splitPayments.slice(0, 3).map((split, index) => (
-                  <div key={index} style={mobileStyles.splitCard}>
-                    <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>
+                  <div key={index} style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    padding: '15px',
+                    borderRadius: '12px',
+                    marginBottom: '10px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
                       {split.title}
-                    </p>
-                    <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
+                    </div>
+                    <div style={glassStyles.cardText}>
                       Total: {formatMistToSui(split.total_amount)} | 
                       Creator: {split.creatorUsername} | 
-                      Status: {split.is_completed ? '✅ Completed' : '⏳ Pending'}
-                    </p>
+                      Status: {split.is_completed ? 'Completed' : 'Pending'}
+                    </div>
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic' }}>No split payments</p>
+                <div style={glassStyles.cardText}>No split payments</div>
               )}
               {splitPayments.length > 3 && (
                 <button 
                   onClick={() => setActiveTab('splits')}
-                  style={{...mobileStyles.smallButton, ...mobileStyles.primaryButton, width: '100%'}}
+                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton}}
                 >
                   View All Split Payments
                 </button>
@@ -802,91 +1058,130 @@ export default function SuiConnApp() {
         return (
           <div>
             {/* Send Friend Request */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>➕ Add Friend</h3>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Add Friend</h3>
               <input
                 type="text"
                 value={friendToAdd}
                 onChange={(e) => setFriendToAdd(e.target.value)}
                 placeholder="Enter friend's username"
-                style={mobileStyles.input}
+                style={glassStyles.input}
               />
               <button 
                 onClick={handleSendFriendRequest} 
                 disabled={loading || !friendToAdd}
-                style={{...mobileStyles.button, ...mobileStyles.primaryButton}}
+                style={{...glassStyles.button, ...glassStyles.primaryButton}}
               >
-                {loading ? '⏳ Sending...' : '📤 Send Friend Request'}
+                <SendIcon />
+                {loading ? 'Sending...' : 'Send Friend Request'}
               </button>
             </div>
 
             {/* Pending Friend Requests */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>📬 Pending Requests ({friendRequests.length})</h3>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Pending Requests ({friendRequests.length})</h3>
               {friendRequests.length > 0 ? (
                 friendRequests.map((req, index) => (
-                  <div key={index} style={mobileStyles.requestCard}>
+                  <div key={index} style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    padding: '15px',
+                    borderRadius: '12px',
+                    marginBottom: '15px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
                     <div style={{ marginBottom: '10px' }}>
-                      <p style={{ margin: '0 0 5px 0', fontSize: '16px', fontWeight: 'bold' }}>
-                        👤 {req.fromUsername}
-                      </p>
-                      <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
+                        {req.fromUsername}
+                      </div>
+                      <div style={glassStyles.cardText}>
                         From: {req.from.slice(0, 8)}...{req.from.slice(-6)}
-                      </p>
-                      <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
-                        📅 {new Date(req.created_at).toLocaleDateString()}
-                      </p>
+                      </div>
+                      <div style={glassStyles.cardText}>
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div style={mobileStyles.buttonGroup}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
                         onClick={() => handleRespondToRequest(req.id, true)}
-                        style={{...mobileStyles.smallButton, ...mobileStyles.successButton}}
+                        style={{...glassStyles.button, ...glassStyles.successButton, ...glassStyles.smallButton}}
                         disabled={loading}
                       >
-                        ✅ Accept
+                        <CheckIcon />
+                        Accept
                       </button>
                       <button 
                         onClick={() => handleRespondToRequest(req.id, false)}
-                        style={{...mobileStyles.smallButton, ...mobileStyles.dangerButton}}
+                        style={{...glassStyles.button, ...glassStyles.dangerButton, ...glassStyles.smallButton}}
                         disabled={loading}
                       >
-                        ❌ Reject
+                        <CloseIcon />
+                        Reject
                       </button>
                     </div>
                   </div>
                 ))
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No pending friend requests</p>
+                <div style={glassStyles.cardText}>No pending friend requests</div>
               )}
             </div>
 
             {/* Friends List */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>👥 Your Friends ({friendsList.length})</h3>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Your Friends ({friendsList.length})</h3>
               {friendsList.length > 0 ? (
-                friendsList.map((friend, index) => (
-                  <div key={index} style={mobileStyles.friendCard}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: '16px' }}>
-                        👤 {friend.username}
-                      </p>
-                      <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
-                        {friend.address.slice(0, 8)}...{friend.address.slice(-6)}
-                      </p>
+                friendsList.map((friend, index) => {
+                  const friendHistory = friendTransactionHistory[friend.address] || [];
+                  const totalSent = friendHistory
+                    .filter(tx => tx.from === account?.address)
+                    .reduce((sum, tx) => sum + tx.amount, 0);
+                  const totalReceived = friendHistory
+                    .filter(tx => tx.to === account?.address)
+                    .reduce((sum, tx) => sum + tx.amount, 0);
+                  
+                  return (
+                    <div key={index} style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      marginBottom: '15px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
+                          {friend.username}
+                        </div>
+                        <div style={glassStyles.cardText}>
+                          {friend.address.slice(0, 8)}...{friend.address.slice(-6)}
+                        </div>
+                        <div style={glassStyles.cardText}>
+                          Sent: {formatMistToSui(totalSent)} | Received: {formatMistToSui(totalReceived)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <button 
+                          onClick={() => {
+                            setPaymentRecipient(friend.username);
+                            setActiveTab('payments');
+                          }}
+                          style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton}}
+                        >
+                          Pay
+                        </button>
+                        <button 
+                          onClick={() => setSelectedFriendForHistory(friend.address)}
+                          style={{...glassStyles.button, ...glassStyles.warningButton, ...glassStyles.smallButton}}
+                        >
+                          History
+                        </button>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => {
-                        setPaymentRecipient(friend.username);
-                        setActiveTab('payments');
-                      }}
-                      style={{...mobileStyles.smallButton, ...mobileStyles.primaryButton}}
-                    >
-                      💸 Pay
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No friends yet. Send some friend requests!</p>
+                <div style={glassStyles.cardText}>No friends yet. Send some friend requests!</div>
               )}
             </div>
           </div>
@@ -894,87 +1189,103 @@ export default function SuiConnApp() {
 
       case 'payments':
         return (
-          <div>
+                        <div>
             {/* Send Payment */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>💸 Send Payment</h3>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <input
-                  type="text"
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Send Payment</h3>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                          <input
+                            type="text"
                   value={paymentRecipient}
                   onChange={(e) => setPaymentRecipient(e.target.value)}
                   placeholder="Recipient username"
-                  style={{...mobileStyles.input, marginBottom: 0, flex: 1}}
+                  style={{...glassStyles.input, marginBottom: 0, flex: 1}}
                 />
                 <button 
                   onClick={() => openFriendSelector('payment')}
-                  style={{...mobileStyles.smallButton, ...mobileStyles.primaryButton, minWidth: '80px'}}
+                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton, width: 'auto'}}
                   disabled={friendsList.length === 0}
                 >
-                  👥 Select
+                  <FriendsIcon />
+                  Select
                 </button>
-              </div>
+                        </div>
               <input
                 type="number"
                 step="0.000000001"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 placeholder="Amount in SUI (e.g., 0.001)"
-                style={mobileStyles.input}
+                style={glassStyles.input}
               />
-              <input
-                type="text"
+                          <input
+                            type="text"
                 value={paymentMemo}
                 onChange={(e) => setPaymentMemo(e.target.value)}
                 placeholder="Memo (optional)"
-                style={mobileStyles.input}
+                style={glassStyles.input}
               />
               <button 
                 onClick={handleSendPayment} 
                 disabled={loading || !paymentRecipient || !paymentAmount}
-                style={{...mobileStyles.button, ...mobileStyles.successButton}}
+                style={{...glassStyles.button, ...glassStyles.successButton}}
               >
-                {loading ? '⏳ Sending...' : '💸 Send Payment'}
+                <SendIcon />
+                {loading ? 'Sending...' : 'Send Payment'}
               </button>
+                        </div>
+
+            {/* Batch Payment */}
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Batch Payment</h3>
+              <button 
+                onClick={() => setShowBatchPayment(true)}
+                style={{...glassStyles.button, ...glassStyles.warningButton}}
+              >
+                Create Batch Payment
+              </button>
+              <div style={glassStyles.cardText}>
+                Send multiple payments at once to save time and gas fees
+                      </div>
             </div>
 
-            {/* Enhanced Split Payments with Type Selection */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>🔄 Create Split Payment</h3>
+            {/* Split Payments */}
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Create Split Payment</h3>
               
               {/* Split Type Selector */}
-              <div style={{ marginBottom: '15px' }}>
-                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Split Type:</p>
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ ...glassStyles.cardSubtitle, marginBottom: '10px' }}>Split Type:</div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     onClick={() => setSplitType('equal')}
                     style={{
-                      ...mobileStyles.smallButton,
-                      ...(splitType === 'equal' ? mobileStyles.primaryButton : { backgroundColor: '#f8f9fa', color: '#6c757d' }),
+                      ...glassStyles.button,
+                      ...(splitType === 'equal' ? glassStyles.primaryButton : { background: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.7)' }),
                       flex: 1
                     }}
                   >
-                    ⚖️ Equal Split
+                    Equal Split
                   </button>
                   <button
                     onClick={() => setSplitType('custom')}
                     style={{
-                      ...mobileStyles.smallButton,
-                      ...(splitType === 'custom' ? mobileStyles.primaryButton : { backgroundColor: '#f8f9fa', color: '#6c757d' }),
+                      ...glassStyles.button,
+                      ...(splitType === 'custom' ? glassStyles.primaryButton : { background: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.7)' }),
                       flex: 1
                     }}
                   >
-                    🎯 Custom Split
+                    Custom Split
                   </button>
                 </div>
               </div>
 
-              <input
-                type="text"
+                          <input
+                            type="text"
                 value={splitTitle}
                 onChange={(e) => setSplitTitle(e.target.value)}
                 placeholder="Split title (e.g., Dinner bill)"
-                style={mobileStyles.input}
+                style={glassStyles.input}
               />
 
               {splitType === 'equal' ? (
@@ -984,46 +1295,35 @@ export default function SuiConnApp() {
                   value={splitAmount}
                   onChange={(e) => setSplitAmount(e.target.value)}
                   placeholder="Total amount in SUI"
-                  style={mobileStyles.input}
+                  style={glassStyles.input}
                 />
               ) : (
-                <input
-                  type="text"
+                          <input
+                            type="text"
                   value={customSplitAmounts}
                   onChange={(e) => setCustomSplitAmounts(e.target.value)}
                   placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
-                  style={mobileStyles.input}
+                  style={glassStyles.input}
                 />
               )}
 
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <input
-                  type="text"
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                          <input
+                            type="text"
                   value={splitParticipants}
                   onChange={(e) => setSplitParticipants(e.target.value)}
                   placeholder="Participants (comma-separated usernames)"
-                  style={{...mobileStyles.input, marginBottom: 0, flex: 1}}
+                  style={{...glassStyles.input, marginBottom: 0, flex: 1}}
                 />
                 <button 
                   onClick={() => openFriendSelector('split')}
-                  style={{...mobileStyles.smallButton, ...mobileStyles.primaryButton, minWidth: '80px'}}
+                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton, width: 'auto'}}
                   disabled={friendsList.length === 0}
                 >
-                  👥 Select
+                  <FriendsIcon />
+                  Select
                 </button>
-              </div>
-
-              {splitType === 'equal' && (
-                <p style={{ fontSize: '12px', color: '#666', margin: '0 0 10px 0' }}>
-                  Amount will be divided equally among all participants
-                </p>
-              )}
-
-              {splitType === 'custom' && (
-                <p style={{ fontSize: '12px', color: '#666', margin: '0 0 10px 0' }}>
-                  Number of amounts must match number of participants
-                </p>
-              )}
+                        </div>
 
               <button 
                 onClick={handleCreateSplitPayment} 
@@ -1031,145 +1331,174 @@ export default function SuiConnApp() {
                   (splitType === 'equal' && (!splitAmount || !splitParticipants)) ||
                   (splitType === 'custom' && (!customSplitAmounts || !splitParticipants))
                 }
-                style={{...mobileStyles.button, ...mobileStyles.primaryButton}}
+                style={{...glassStyles.button, ...glassStyles.primaryButton}}
               >
-                {loading ? '⏳ Creating...' : `🔄 Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
+                <SplitIcon />
+                {loading ? 'Creating...' : `Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
               </button>
-            </div>
+                      </div>
           </div>
         );
-
+                      
       case 'splits':
         return (
-          <div>
-            {/* Split Payments Management */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>🔄 Your Split Payments ({splitPayments.length})</h3>
+                      <div>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Your Split Payments ({splitPayments.length})</h3>
               {splitPayments.length > 0 ? (
                 splitPayments.map((split, index) => {
                   const userParticipant = split.participants.find(p => p.address === account?.address);
                   const isCreator = split.creator === account?.address;
                   
                   return (
-                    <div key={index} style={mobileStyles.splitCard}>
-                      <div style={{ marginBottom: '10px' }}>
-                        <p style={{ margin: '0 0 5px 0', fontSize: '16px', fontWeight: 'bold' }}>
+                    <div key={index} style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      marginBottom: '15px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                      <div style={{ marginBottom: '15px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '10px' }}>
                           {split.title}
-                        </p>
-                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
+                                </div>
+                        <div style={glassStyles.cardText}>
                           <strong>Total:</strong> {formatMistToSui(split.total_amount)}
-                        </p>
-                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
+                              </div>
+                        <div style={glassStyles.cardText}>
                           <strong>Creator:</strong> {split.creatorUsername} {isCreator && '(You)'}
-                        </p>
-                        <p style={{ margin: '0 0 10px 0', fontSize: '14px' }}>
-                          <strong>Status:</strong> {split.is_completed ? '✅ Completed' : '⏳ Pending'}
-                        </p>
-                        
+                          </div>
+                        <div style={glassStyles.cardText}>
+                          <strong>Status:</strong> {split.is_completed ? 'Completed' : 'Pending'}
+                      </div>
+
                         {/* Participants */}
-                        <div style={{ backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
-                          <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold' }}>Participants:</p>
+                        <div style={{ 
+                          background: 'rgba(255, 255, 255, 0.05)', 
+                          padding: '15px', 
+                          borderRadius: '8px', 
+                          marginTop: '15px' 
+                        }}>
+                          <div style={{ ...glassStyles.cardSubtitle, marginBottom: '10px' }}>Participants:</div>
                           {split.participants.map((participant, pIndex) => (
-                            <div key={pIndex} style={{ fontSize: '12px', marginBottom: '3px' }}>
-                              {participant.username}: {formatMistToSui(participant.amount_owed)} 
-                              {participant.has_paid ? ' ✅ Paid' : ' ⏳ Pending'}
-                              {participant.address === account?.address && ' (You)'}
-                            </div>
-                          ))}
-                        </div>
+                            <div key={pIndex} style={{ 
+                              ...glassStyles.cardText, 
+                              marginBottom: '5px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span>
+                                {participant.username}: {formatMistToSui(participant.amount_owed)}
+                                {participant.address === account?.address && ' (You)'}
+                              </span>
+                              <span style={{ 
+                                fontSize: '12px',
+                                color: participant.has_paid ? '#4CAF50' : '#FF9800'
+                              }}>
+                                {participant.has_paid ? 'Paid' : 'Pending'}
+                              </span>
+                              </div>
+                            ))}
+                          </div>
                         
                         {/* Action buttons */}
                         {userParticipant && !userParticipant.has_paid && !split.is_completed && (
                           <button 
                             onClick={() => handlePaySplitAmount(split.id, userParticipant.amount_owed)}
-                            style={{...mobileStyles.button, ...mobileStyles.successButton}}
+                            style={{...glassStyles.button, ...glassStyles.successButton}}
                             disabled={loading}
                           >
-                            {loading ? '⏳ Paying...' : `💰 Pay ${formatMistToSui(userParticipant.amount_owed)}`}
+                            {loading ? 'Paying...' : `Pay ${formatMistToSui(userParticipant.amount_owed)}`}
                           </button>
                         )}
                         
                         {userParticipant && userParticipant.has_paid && (
                           <div style={{ 
-                            backgroundColor: '#d4edda', 
-                            color: '#155724', 
-                            padding: '8px', 
-                            borderRadius: '4px', 
-                            fontSize: '14px',
-                            textAlign: 'center'
+                            background: 'rgba(76, 175, 80, 0.2)', 
+                            color: '#4CAF50', 
+                            padding: '10px', 
+                            borderRadius: '8px', 
+                            textAlign: 'center',
+                            marginTop: '10px'
                           }}>
-                            ✅ You have paid your share
-                          </div>
+                            You have paid your share
+                      </div>
                         )}
                         
                         {isCreator && (
                           <div style={{ 
-                            backgroundColor: '#cce5ff', 
-                            color: '#004085', 
-                            padding: '8px', 
-                            borderRadius: '4px', 
-                            fontSize: '14px',
+                            background: 'rgba(102, 126, 234, 0.2)', 
+                            color: '#667eea', 
+                            padding: '10px', 
+                            borderRadius: '8px', 
                             textAlign: 'center',
-                            marginTop: '5px'
+                            marginTop: '10px'
                           }}>
-                            👑 You created this split
-                          </div>
+                            You created this split
+                        </div>
                         )}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No split payments found</p>
+                <div style={glassStyles.cardText}>No split payments found</div>
               )}
-            </div>
-          </div>
+                                  </div>
+                                </div>
         );
 
       case 'history':
         return (
           <div>
-            {/* Transaction History */}
-            <div style={mobileStyles.card}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>📜 Transaction History ({transactionHistory.length})</h3>
+            <div style={glassStyles.glassCard}>
+              <h3 style={glassStyles.cardTitle}>Transaction History ({transactionHistory.length})</h3>
               {transactionHistory.length > 0 ? (
                 transactionHistory.map((record, index) => {
                   const isOutgoing = record.from === account?.address;
                   const paymentTypeText = record.payment_type === 0 ? 'Direct Payment' : 
                                         record.payment_type === 1 ? 'Split Payment' : 'Group Payment';
-                  const statusText = record.status === 0 ? '⏳ Pending' : 
-                                   record.status === 1 ? '✅ Completed' : '❌ Failed';
+                  const statusText = record.status === 0 ? 'Pending' : 
+                                   record.status === 1 ? 'Completed' : 'Failed';
                   
                   return (
                     <div key={index} style={{
-                      ...mobileStyles.historyCard,
-                      backgroundColor: isOutgoing ? '#fff3cd' : '#d4edda',
-                      border: `1px solid ${isOutgoing ? '#ffeaa7' : '#c3e6cb'}`
+                      background: isOutgoing ? 'rgba(255, 193, 7, 0.1)' : 'rgba(76, 175, 80, 0.1)',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      marginBottom: '15px',
+                      border: `1px solid ${isOutgoing ? 'rgba(255, 193, 7, 0.3)' : 'rgba(76, 175, 80, 0.3)'}`
                     }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>
-                          {isOutgoing ? '📤' : '📥'} {paymentTypeText}
-                        </p>
-                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
-                          {isOutgoing ? `To: ${record.toUsername}` : `From: ${record.fromUsername}`}
-                        </p>
-                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
-                          Amount: {formatMistToSui(record.amount)}
-                        </p>
-                        {record.memo && (
-                          <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666' }}>
-                            Memo: {record.memo}
-                          </p>
+                      <div style={{ 
+                        fontWeight: '600', 
+                        color: '#fff', 
+                        marginBottom: '5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {isOutgoing ? 'Sent' : 'Received'} - {paymentTypeText}
+                                      </div>
+                      <div style={glassStyles.cardText}>
+                        {isOutgoing ? `To: ${record.toUsername}` : `From: ${record.fromUsername}`}
+                                  </div>
+                      <div style={glassStyles.cardText}>
+                        Amount: {formatMistToSui(record.amount)}
+                                </div>
+                      {record.memo && (
+                        <div style={glassStyles.cardText}>
+                          Memo: {record.memo}
+                          </div>
                         )}
-                        <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
-                          {new Date(record.timestamp).toLocaleDateString()} - {statusText}
-                        </p>
+                      <div style={glassStyles.cardText}>
+                        {new Date(record.timestamp).toLocaleDateString()} - {statusText}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No transaction history</p>
+                <div style={glassStyles.cardText}>No transaction history</div>
               )}
             </div>
           </div>
@@ -1181,61 +1510,95 @@ export default function SuiConnApp() {
   };
 
   return (
-    <div style={mobileStyles.container}>
+    <div style={glassStyles.container}>
+      {/* Background Effect */}
+      <div style={glassStyles.backgroundEffect}></div>
+      
+      {/* CSS Animations */}
+      <style>
+        {`
+          @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(5px, -5px) rotate(1deg); }
+            50% { transform: translate(-3px, 3px) rotate(-1deg); }
+            75% { transform: translate(-5px, -3px) rotate(1deg); }
+          }
+          
+          input::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+          }
+          
+          input:focus {
+            border-color: rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1) !important;
+          }
+          
+          button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2) !important;
+          }
+          
+          button:active {
+            transform: translateY(0);
+          }
+        `}
+      </style>
+
       {/* Header */}
-      <div style={mobileStyles.header}>
-        <h1 style={mobileStyles.title}>🌊 SuiConn</h1>
+      <div style={glassStyles.header}>
+        <h1 style={glassStyles.logo}>SuiConn</h1>
         <ConnectButton />
       </div>
 
       {!connected ? (
-        <div style={{...mobileStyles.card, textAlign: 'center', padding: '40px 20px'}}>
-          <h2 style={{ color: '#2c3e50', marginBottom: '15px' }}>👋 Welcome to SuiConn</h2>
-          <p style={{ color: '#666', marginBottom: '20px' }}>Connect your wallet to start using the social payment platform</p>
+        <div style={{...glassStyles.glassCard, textAlign: 'center', padding: '60px 30px'}}>
+          <h2 style={glassStyles.cardTitle}>Welcome to SuiConn</h2>
+          <div style={glassStyles.cardSubtitle}>Connect your wallet to start using the social payment platform</div>
         </div>
       ) : !userProfile ? (
-        <div style={mobileStyles.card}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#2c3e50' }}>📝 Register</h2>
-          <input
-            type="text"
+        <div style={glassStyles.glassCard}>
+          <h2 style={glassStyles.cardTitle}>Register</h2>
+                          <input
+                            type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Choose a unique username"
-            style={mobileStyles.input}
+            style={glassStyles.input}
             maxLength={20}
           />
           <button 
             onClick={handleRegister} 
             disabled={loading || !username}
-            style={{...mobileStyles.button, ...mobileStyles.primaryButton}}
+            style={{...glassStyles.button, ...glassStyles.primaryButton}}
           >
-            {loading ? '⏳ Registering...' : '📝 Register'}
+            <UserIcon />
+            {loading ? 'Registering...' : 'Register'}
           </button>
-          <p style={{ fontSize: '12px', color: '#666', margin: '10px 0 0 0' }}>
+          <div style={glassStyles.cardText}>
             Username must be unique and contain only letters, numbers, and underscores
-          </p>
-        </div>
+                        </div>
+                      </div>
       ) : (
-        <div>
-          {/* Mobile Tab Navigation */}
-          <div style={mobileStyles.tabContainer}>
+                      <div>
+          {/* Tab Navigation */}
+          <div style={glassStyles.tabContainer}>
             {[
-              { key: 'profile', label: '👤', title: 'Profile' },
-              { key: 'friends', label: '👥', title: 'Friends' },
-              { key: 'payments', label: '💸', title: 'Pay' },
-              { key: 'splits', label: '🔄', title: 'Splits' },
-              { key: 'history', label: '📜', title: 'History' }
+              { key: 'profile', icon: <UserIcon />, label: 'Profile' },
+              { key: 'friends', icon: <FriendsIcon />, label: 'Friends' },
+              { key: 'payments', icon: <PaymentIcon />, label: 'Pay' },
+              { key: 'splits', icon: <SplitIcon />, label: 'Splits' },
+              { key: 'history', icon: <HistoryIcon />, label: 'History' }
             ].map(tab => (
               <div
                 key={tab.key}
                 style={{
-                  ...mobileStyles.tab,
-                  ...(activeTab === tab.key ? mobileStyles.activeTab : mobileStyles.inactiveTab)
+                  ...glassStyles.tab,
+                  ...(activeTab === tab.key ? glassStyles.activeTab : glassStyles.inactiveTab)
                 }}
                 onClick={() => setActiveTab(tab.key)}
               >
-                <div style={{ fontSize: '18px', marginBottom: '2px' }}>{tab.label}</div>
-                <div style={{ fontSize: '12px' }}>{tab.title}</div>
+                {tab.icon}
+                <span>{tab.label}</span>
               </div>
             ))}
           </div>
@@ -1245,22 +1608,177 @@ export default function SuiConnApp() {
         </div>
       )}
 
+      {/* Batch Payment Modal */}
+      {showBatchPayment && (
+        <div style={glassStyles.modal}>
+          <div style={glassStyles.modalContent}>
+            <h3 style={glassStyles.cardTitle}>Create Batch Payment</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <button 
+                onClick={() => openFriendSelector('batch')}
+                style={{...glassStyles.button, ...glassStyles.warningButton}}
+                disabled={friendsList.length === 0}
+              >
+                <FriendsIcon />
+                Select Friends for Batch
+              </button>
+            </div>
+
+            {batchPayments.map((payment, index) => (
+              <div key={index} style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                padding: '20px',
+                borderRadius: '12px',
+                marginBottom: '15px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <h4 style={{ margin: 0, color: '#fff' }}>Payment #{index + 1}</h4>
+                  {batchPayments.length > 1 && (
+                    <button 
+                      onClick={() => removeBatchPaymentRow(index)}
+                      style={{...glassStyles.button, ...glassStyles.dangerButton, ...glassStyles.smallButton}}
+                    >
+                      <CloseIcon />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                          <input
+                            type="text"
+                  value={payment.recipients[0]}
+                  onChange={(e) => updateBatchPayment(index, 'recipients', [e.target.value])}
+                  placeholder="Recipient username"
+                  style={glassStyles.input}
+                />
+                
+                          <input
+                            type="number"
+                  step="0.000000001"
+                  value={payment.amounts[0]}
+                  onChange={(e) => updateBatchPayment(index, 'amounts', [e.target.value])}
+                  placeholder="Amount in SUI"
+                  style={glassStyles.input}
+                />
+                
+                                <input
+                                  type="text"
+                  value={payment.memos[0]}
+                  onChange={(e) => updateBatchPayment(index, 'memos', [e.target.value])}
+                  placeholder="Memo (optional)"
+                  style={glassStyles.input}
+                />
+                              </div>
+                            ))}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
+              <button 
+                onClick={addBatchPaymentRow}
+                style={{...glassStyles.button, ...glassStyles.warningButton, marginBottom: 0}}
+              >
+                Add Payment
+              </button>
+              <button 
+                onClick={handleBatchPayment}
+                style={{...glassStyles.button, ...glassStyles.successButton, marginBottom: 0}}
+                disabled={loading}
+              >
+                {loading ? 'Sending...' : 'Send Batch'}
+              </button>
+              <button 
+                onClick={() => setShowBatchPayment(false)}
+                style={{...glassStyles.button, ...glassStyles.dangerButton, marginBottom: 0}}
+              >
+                Cancel
+              </button>
+                          </div>
+          </div>
+        </div>
+      )}
+
+      {/* Friend Transaction History Modal */}
+      {selectedFriendForHistory && (
+        <div style={glassStyles.modal}>
+          <div style={glassStyles.modalContent}>
+            <h3 style={glassStyles.cardTitle}>
+              Transaction History with {friendsList.find(f => f.address === selectedFriendForHistory)?.username}
+            </h3>
+            
+            {friendTransactionHistory[selectedFriendForHistory]?.length > 0 ? (
+              friendTransactionHistory[selectedFriendForHistory].map((record, index) => {
+                const isOutgoing = record.from === account?.address;
+                const paymentTypeText = record.payment_type === 0 ? 'Direct' : 
+                                      record.payment_type === 1 ? 'Split' : 'Group';
+                
+                return (
+                  <div key={index} style={{
+                    background: isOutgoing ? 'rgba(255, 193, 7, 0.1)' : 'rgba(76, 175, 80, 0.1)',
+                    padding: '15px',
+                    borderRadius: '12px',
+                    marginBottom: '10px',
+                    border: `1px solid ${isOutgoing ? 'rgba(255, 193, 7, 0.3)' : 'rgba(76, 175, 80, 0.3)'}`
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
+                      {isOutgoing ? 'Sent' : 'Received'} - {paymentTypeText}
+                    </div>
+                    <div style={glassStyles.cardText}>
+                      Amount: {formatMistToSui(record.amount)}
+                    </div>
+                    {record.memo && (
+                      <div style={glassStyles.cardText}>
+                        Memo: {record.memo}
+                      </div>
+                    )}
+                    <div style={glassStyles.cardText}>
+                      {new Date(record.timestamp).toLocaleDateString()} at {new Date(record.timestamp).toLocaleTimeString()}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={glassStyles.cardText}>
+                No transaction history with this friend
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setSelectedFriendForHistory(null)}
+              style={{...glassStyles.button, ...glassStyles.primaryButton, marginTop: '20px'}}
+            >
+              <CheckIcon />
+              Close
+            </button>
+                        </div>
+                      </div>
+      )}
+
       {/* Friend Selector Modal */}
       {showFriendSelector && (
-        <div style={mobileStyles.friendSelector}>
-          <div style={mobileStyles.friendSelectorContent}>
-            <h3 style={{ margin: '0 0 15px 0' }}>
-              {friendSelectorFor === 'split' ? '🔄 Select Friends for Split' : '💸 Select Friend to Pay'}
+        <div style={glassStyles.modal}>
+          <div style={glassStyles.modalContent}>
+            <h3 style={glassStyles.cardTitle}>
+              {friendSelectorFor === 'split' ? 'Select Friends for Split' : 
+               friendSelectorFor === 'payment' ? 'Select Friend to Pay' :
+               friendSelectorFor === 'batch' ? 'Select Friends for Batch Payment' : 'Select Friends'}
             </h3>
             
             {friendsList.length > 0 ? (
-              <div>
+                      <div>
                 {friendsList.map((friend, index) => (
                   <div 
                     key={index} 
                     style={{
-                      ...mobileStyles.checkboxItem,
-                      backgroundColor: selectedFriends.includes(friend.username) ? '#e3f2fd' : '#f8f9fa'
+                      background: selectedFriends.includes(friend.username) ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                      padding: '15px',
+                      borderRadius: '12px',
+                      marginBottom: '10px',
+                      cursor: 'pointer',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '15px'
                     }}
                     onClick={() => {
                       if (friendSelectorFor === 'payment') {
@@ -1274,98 +1792,85 @@ export default function SuiConnApp() {
                       type={friendSelectorFor === 'payment' ? 'radio' : 'checkbox'}
                       checked={selectedFriends.includes(friend.username)}
                       onChange={() => {}}
-                      style={{ marginRight: '10px' }}
+                      style={{ accentColor: '#667eea' }}
                     />
                     <div>
-                      <div style={{ fontWeight: 'bold' }}>{friend.username}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
+                      <div style={{ fontWeight: '600', color: '#fff' }}>{friend.username}</div>
+                      <div style={glassStyles.cardText}>
                         {friend.address.slice(0, 8)}...{friend.address.slice(-6)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                                </div>
+                                </div>
+                              </div>
+                            ))}
                 
-                <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                <div style={{ marginTop: '30px', display: 'flex', gap: '10px' }}>
                   <button 
                     onClick={confirmFriendSelection}
-                    style={{...mobileStyles.button, ...mobileStyles.successButton, marginBottom: 0}}
+                    style={{...glassStyles.button, ...glassStyles.successButton, marginBottom: 0}}
                     disabled={selectedFriends.length === 0}
                   >
-                    ✅ Confirm ({selectedFriends.length})
+                    <CheckIcon />
+                    Confirm ({selectedFriends.length})
                   </button>
                   <button 
                     onClick={closeFriendSelector}
-                    style={{...mobileStyles.button, ...mobileStyles.dangerButton, marginBottom: 0}}
+                    style={{...glassStyles.button, ...glassStyles.dangerButton, marginBottom: 0}}
                   >
-                    ❌ Cancel
+                    <CloseIcon />
+                    Cancel
                   </button>
-                </div>
-              </div>
+                          </div>
+                      </div>
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <p>No friends available</p>
+                <div style={glassStyles.cardText}>No friends available</div>
                 <button 
                   onClick={closeFriendSelector}
-                  style={{...mobileStyles.button, ...mobileStyles.primaryButton}}
+                  style={{...glassStyles.button, ...glassStyles.primaryButton}}
                 >
                   Close
                 </button>
-              </div>
-            )}
+                    </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Status Messages */}
-      {error && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '10px',
-          right: '10px',
-          backgroundColor: '#dc3545',
-          color: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          <strong>❌ Error:</strong> {error}
-        </div>
-      )}
+        {error && (
+        <div style={{...glassStyles.notification, ...glassStyles.errorNotification}}>
+          <CloseIcon />
+          <strong>Error:</strong> {error}
+          </div>
+        )}
       
-      {success && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '10px',
-          right: '10px',
-          backgroundColor: '#28a745',
-          color: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          <strong>✅ Success:</strong> {success}
-        </div>
-      )}
+        {success && (
+        <div style={{...glassStyles.notification, ...glassStyles.successNotification}}>
+          <CheckIcon />
+          <strong>Success:</strong> {success}
+          </div>
+        )}
       
       {loading && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '10px',
-          right: '10px',
-          backgroundColor: '#007bff',
-          color: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          <strong>⏳ Processing:</strong> Transaction in progress...
-        </div>
+        <div style={{...glassStyles.notification, ...glassStyles.loadingNotification}}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            borderTop: '2px solid #fff',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+          <strong>Processing:</strong> Transaction in progress...
+      </div>
       )}
     </div>
   );
