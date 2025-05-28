@@ -8,7 +8,7 @@ const REGISTRY_OBJECT_ID = '0x4432099e7bdf4b607f09a28f3e7f0feaa9ee396dba779baf12
 const USER_PROFILES_TABLE_ID = '0x6d4114ff53d3fb8352d0a40638aaccbf58b3833b06f981ceb8a544ed9dfa56f3';
 const FRIEND_REQUESTS_TABLE_ID = '0xcfe84647c1b2c4a23dad88e77846552b995c417c7b0b5d8ef36fb7f112ad8610';
 const SPLIT_PAYMENTS_TABLE_ID = '0x2e43a39d74678a277ec75e5557c0290b585c8cad25677f4e239b1c61c30ecc4d';
-const USERNAME_REGISTRY_TABLE_ID = '0xcf30d3fdd6fb90502f3e4e06f10505485c1459d3f69ca2eeab8703fa4efd7d80';
+const PAYMENT_HISTORY_TABLE_ID = '0x4eb7d1fa28011028dfa5337d708dee756a6a0d84b7408e552806f0fa778e1499';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
 interface UserProfile {
@@ -59,16 +59,18 @@ interface SplitParticipant {
   username?: string;
 }
 
-interface Group {
+interface PaymentRecord {
   id: string;
-  name: string;
-  description: string | null;
-  admin: string;
-  members: any[];
-  created_at: number;
-  total_spent: number;
-  is_active: boolean;
-  member_count: number;
+  from: string;
+  to: string;
+  amount: number;
+  memo: string;
+  payment_type: number;
+  related_id: string | null;
+  timestamp: number;
+  status: number;
+  fromUsername?: string;
+  toUsername?: string;
 }
 
 export default function SuiConnApp() {
@@ -80,29 +82,23 @@ export default function SuiConnApp() {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [friendsList, setFriendsList] = useState<Friend[]>([]);
   const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [transactionHistory, setTransactionHistory] = useState<PaymentRecord[]>([]);
   const [activeTab, setActiveTab] = useState('profile');
 
   // Form states
   const [username, setUsername] = useState('');
   const [friendToAdd, setFriendToAdd] = useState('');
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-  const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
-  const [memberToAdd, setMemberToAdd] = useState('');
   const [paymentRecipient, setPaymentRecipient] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMemo, setPaymentMemo] = useState('');
   const [splitTitle, setSplitTitle] = useState('');
   const [splitAmount, setSplitAmount] = useState('');
   const [splitParticipants, setSplitParticipants] = useState('');
-  const [splitId, setSplitId] = useState('');
-  const [requestId, setRequestId] = useState('');
-  const [groupId, setGroupId] = useState('');
   const [customSplitAmounts, setCustomSplitAmounts] = useState('');
-  const [newAdminUsername, setNewAdminUsername] = useState('');
   const [showFriendSelector, setShowFriendSelector] = useState(false);
   const [friendSelectorFor, setFriendSelectorFor] = useState('');
+  const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
 
   // Mobile styles
   const mobileStyles = {
@@ -171,10 +167,6 @@ export default function SuiConnApp() {
       backgroundColor: '#dc3545',
       color: 'white'
     },
-    warningButton: {
-      backgroundColor: '#ffc107',
-      color: '#212529'
-    },
     tabContainer: {
       display: 'flex',
       backgroundColor: '#fff',
@@ -224,6 +216,13 @@ export default function SuiConnApp() {
       borderRadius: '8px',
       marginBottom: '10px',
       border: '1px solid #b3d9ff'
+    },
+    historyCard: {
+      backgroundColor: '#f8f9fa',
+      padding: '15px',
+      borderRadius: '8px',
+      marginBottom: '10px',
+      border: '1px solid #e9ecef'
     },
     buttonGroup: {
       display: 'flex',
@@ -352,11 +351,53 @@ export default function SuiConnApp() {
     }
   };
 
+  // Fetch transaction history
+  const fetchTransactionHistory = async () => {
+    if (!account?.address) return;
+    try {
+      const entry = await suiClient.getDynamicFieldObject({
+        parentId: PAYMENT_HISTORY_TABLE_ID,
+        name: {
+          type: 'address',
+          value: account.address
+        }
+      });
+
+      if (entry.data?.content?.dataType === 'moveObject') {
+        const fields = entry.data.content.fields as any;
+        const historyArray = fields.value || [];
+        
+        // Add usernames to transaction history
+        const historyWithUsernames = await Promise.all(
+          historyArray.map(async (record: any) => ({
+            id: record.fields.id,
+            from: record.fields.from,
+            to: record.fields.to,
+            amount: parseInt(record.fields.amount),
+            memo: record.fields.memo,
+            payment_type: record.fields.payment_type,
+            related_id: record.fields.related_id,
+            timestamp: parseInt(record.fields.timestamp),
+            status: record.fields.status,
+            fromUsername: await getUsernameFromAddress(record.fields.from),
+            toUsername: await getUsernameFromAddress(record.fields.to)
+          }))
+        );
+        
+        // Sort by timestamp (newest first)
+        historyWithUsernames.sort((a, b) => b.timestamp - a.timestamp);
+        setTransactionHistory(historyWithUsernames);
+      }
+    } catch (err) {
+      console.error('❌ Failed to load transaction history:', err);
+      setTransactionHistory([]);
+    }
+  };
+
   // Fetch split payments
   const fetchSplitPayments = async () => {
     if (!account?.address) return;
     try {
-      // Get all split payments from the table
       const splitPaymentsData = await suiClient.getDynamicFields({
         parentId: SPLIT_PAYMENTS_TABLE_ID
       });
@@ -374,14 +415,12 @@ export default function SuiConnApp() {
             const fields = splitEntry.data.content.fields as any;
             const splitPayment = fields.value.fields;
 
-            // Check if user is creator or participant
             const isCreator = splitPayment.creator === account.address;
             const isParticipant = splitPayment.participants.some((p: any) => 
               p.fields.address === account.address
             );
 
             if (isCreator || isParticipant) {
-              // Add usernames to participants
               const participantsWithUsernames = await Promise.all(
                 splitPayment.participants.map(async (p: any) => ({
                   address: p.fields.address,
@@ -482,6 +521,7 @@ export default function SuiConnApp() {
           fetchUserProfile();
           fetchFriendRequestsWithUsernames();
           fetchSplitPayments();
+          fetchTransactionHistory();
         } else {
           setUserProfile(null);
         }
@@ -491,6 +531,7 @@ export default function SuiConnApp() {
       setFriendRequests([]);
       setFriendsList([]);
       setSplitPayments([]);
+      setTransactionHistory([]);
     }
   }, [connected, account?.address]);
 
@@ -523,6 +564,7 @@ export default function SuiConnApp() {
         fetchUserProfile();
         fetchFriendRequestsWithUsernames();
         fetchSplitPayments();
+        fetchTransactionHistory();
       }, 3000);
     } catch (err) {
       setError('Transaction failed: ' + (err instanceof Error ? err.message : String(err)));
@@ -630,22 +672,48 @@ export default function SuiConnApp() {
     }, 'Payment sent successfully!');
   };
 
+  // Enhanced split payment creation with type selection
   const handleCreateSplitPayment = () => {
     const participants = splitParticipants.split(',').map(p => p.trim()).filter(p => p);
-    const amountInMist = convertSuiToMist(splitAmount);
-    executeTransaction((tx) => {
-      tx.moveCall({
-        target: `${PACKAGE_ID}::suiconn::create_split_payment`,
-        arguments: [
-          tx.object(REGISTRY_OBJECT_ID),
-          tx.pure.string(splitTitle),
-          tx.pure.u64(amountInMist),
-          tx.pure.vector('string', participants),
-          tx.pure.option('id', null),
-          tx.object('0x6'),
-        ],
-      });
-    }, 'Split payment created!');
+    
+    if (splitType === 'equal') {
+      const amountInMist = convertSuiToMist(splitAmount);
+      executeTransaction((tx) => {
+        tx.moveCall({
+          target: `${PACKAGE_ID}::suiconn::create_split_payment`,
+          arguments: [
+            tx.object(REGISTRY_OBJECT_ID),
+            tx.pure.string(splitTitle),
+            tx.pure.u64(amountInMist),
+            tx.pure.vector('string', participants),
+            tx.pure.option('id', null),
+            tx.object('0x6'),
+          ],
+        });
+      }, 'Equal split payment created!');
+    } else {
+      // Custom split
+      const amounts = customSplitAmounts.split(',').map(a => convertSuiToMist(a.trim())).filter(a => a > 0);
+      
+      if (participants.length !== amounts.length) {
+        setError('Number of participants must match number of amounts');
+        return;
+      }
+
+      executeTransaction((tx) => {
+        tx.moveCall({
+          target: `${PACKAGE_ID}::suiconn::create_custom_split_payment`,
+          arguments: [
+            tx.object(REGISTRY_OBJECT_ID),
+            tx.pure.string(splitTitle),
+            tx.pure.vector('string', participants),
+            tx.pure.vector('u64', amounts),
+            tx.pure.option('id', null),
+            tx.object('0x6'),
+          ],
+        });
+      }, 'Custom split payment created!');
+    }
   };
 
   const handlePaySplitAmount = (splitPaymentId: string, amountOwed: number) => {
@@ -870,9 +938,37 @@ export default function SuiConnApp() {
               </button>
             </div>
 
-            {/* Split Payments */}
+            {/* Enhanced Split Payments with Type Selection */}
             <div style={mobileStyles.card}>
               <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>🔄 Create Split Payment</h3>
+              
+              {/* Split Type Selector */}
+              <div style={{ marginBottom: '15px' }}>
+                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Split Type:</p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => setSplitType('equal')}
+                    style={{
+                      ...mobileStyles.smallButton,
+                      ...(splitType === 'equal' ? mobileStyles.primaryButton : { backgroundColor: '#f8f9fa', color: '#6c757d' }),
+                      flex: 1
+                    }}
+                  >
+                    ⚖️ Equal Split
+                  </button>
+                  <button
+                    onClick={() => setSplitType('custom')}
+                    style={{
+                      ...mobileStyles.smallButton,
+                      ...(splitType === 'custom' ? mobileStyles.primaryButton : { backgroundColor: '#f8f9fa', color: '#6c757d' }),
+                      flex: 1
+                    }}
+                  >
+                    🎯 Custom Split
+                  </button>
+                </div>
+              </div>
+
               <input
                 type="text"
                 value={splitTitle}
@@ -880,14 +976,26 @@ export default function SuiConnApp() {
                 placeholder="Split title (e.g., Dinner bill)"
                 style={mobileStyles.input}
               />
-              <input
-                type="number"
-                step="0.000000001"
-                value={splitAmount}
-                onChange={(e) => setSplitAmount(e.target.value)}
-                placeholder="Total amount in SUI"
-                style={mobileStyles.input}
-              />
+
+              {splitType === 'equal' ? (
+                <input
+                  type="number"
+                  step="0.000000001"
+                  value={splitAmount}
+                  onChange={(e) => setSplitAmount(e.target.value)}
+                  placeholder="Total amount in SUI"
+                  style={mobileStyles.input}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={customSplitAmounts}
+                  onChange={(e) => setCustomSplitAmounts(e.target.value)}
+                  placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
+                  style={mobileStyles.input}
+                />
+              )}
+
               <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                 <input
                   type="text"
@@ -904,12 +1012,28 @@ export default function SuiConnApp() {
                   👥 Select
                 </button>
               </div>
+
+              {splitType === 'equal' && (
+                <p style={{ fontSize: '12px', color: '#666', margin: '0 0 10px 0' }}>
+                  Amount will be divided equally among all participants
+                </p>
+              )}
+
+              {splitType === 'custom' && (
+                <p style={{ fontSize: '12px', color: '#666', margin: '0 0 10px 0' }}>
+                  Number of amounts must match number of participants
+                </p>
+              )}
+
               <button 
                 onClick={handleCreateSplitPayment} 
-                disabled={loading || !splitTitle || !splitAmount || !splitParticipants}
+                disabled={loading || !splitTitle || 
+                  (splitType === 'equal' && (!splitAmount || !splitParticipants)) ||
+                  (splitType === 'custom' && (!customSplitAmounts || !splitParticipants))
+                }
                 style={{...mobileStyles.button, ...mobileStyles.primaryButton}}
               >
-                {loading ? '⏳ Creating...' : '🔄 Create Split Payment'}
+                {loading ? '⏳ Creating...' : `🔄 Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
               </button>
             </div>
           </div>
@@ -1002,6 +1126,55 @@ export default function SuiConnApp() {
           </div>
         );
 
+      case 'history':
+        return (
+          <div>
+            {/* Transaction History */}
+            <div style={mobileStyles.card}>
+              <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>📜 Transaction History ({transactionHistory.length})</h3>
+              {transactionHistory.length > 0 ? (
+                transactionHistory.map((record, index) => {
+                  const isOutgoing = record.from === account?.address;
+                  const paymentTypeText = record.payment_type === 0 ? 'Direct Payment' : 
+                                        record.payment_type === 1 ? 'Split Payment' : 'Group Payment';
+                  const statusText = record.status === 0 ? '⏳ Pending' : 
+                                   record.status === 1 ? '✅ Completed' : '❌ Failed';
+                  
+                  return (
+                    <div key={index} style={{
+                      ...mobileStyles.historyCard,
+                      backgroundColor: isOutgoing ? '#fff3cd' : '#d4edda',
+                      border: `1px solid ${isOutgoing ? '#ffeaa7' : '#c3e6cb'}`
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>
+                          {isOutgoing ? '📤' : '📥'} {paymentTypeText}
+                        </p>
+                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
+                          {isOutgoing ? `To: ${record.toUsername}` : `From: ${record.fromUsername}`}
+                        </p>
+                        <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
+                          Amount: {formatMistToSui(record.amount)}
+                        </p>
+                        {record.memo && (
+                          <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666' }}>
+                            Memo: {record.memo}
+                          </p>
+                        )}
+                        <p style={{ margin: '0', fontSize: '12px', color: '#666' }}>
+                          {new Date(record.timestamp).toLocaleDateString()} - {statusText}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p style={{ color: '#666', fontStyle: 'italic', textAlign: 'center' }}>No transaction history</p>
+              )}
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -1050,7 +1223,8 @@ export default function SuiConnApp() {
               { key: 'profile', label: '👤', title: 'Profile' },
               { key: 'friends', label: '👥', title: 'Friends' },
               { key: 'payments', label: '💸', title: 'Pay' },
-              { key: 'splits', label: '🔄', title: 'Splits' }
+              { key: 'splits', label: '🔄', title: 'Splits' },
+              { key: 'history', label: '📜', title: 'History' }
             ].map(tab => (
               <div
                 key={tab.key}
