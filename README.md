@@ -55,7 +55,7 @@ text
 - [Node.js](https://nodejs.org/) (v16+)
 - npm or yarn
 - [Sui CLI](https://docs.sui.io/build/install) (for contract deployment)
-- [Suiet Wallet](https://suiet.app/) browser extension
+- [sui Wallet](any) any sui wallet browser extension
 
 ---
 
@@ -109,7 +109,7 @@ text
 
 ### Getting Started
 
-1. **Connect Wallet:** Click "Connect" and approve Suiet Wallet.
+1. **Connect Wallet:** Click "Connect" and approve any sui Wallet.
 2. **Create Friend List:** If new, click "Create Friend List."
 3. **Add Friends:** Enter friend's Sui address and name, then "Add Friend."
 
