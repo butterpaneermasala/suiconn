@@ -3,15 +3,11 @@ export interface UserProfile {
   address: string;
   friends: string[];
   created_at: number;
-  is_active: boolean;
   last_payment_time: number;
   daily_payment_count: number;
   last_friend_request_time: number;
   total_payments_sent: number;
   total_payments_received: number;
-  enable_rate_limiting: boolean;
-  enable_friend_verification: boolean;
-  custom_daily_limit: number;
 }
 
 export interface FriendRequest {

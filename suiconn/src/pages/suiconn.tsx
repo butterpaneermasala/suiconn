@@ -73,16 +73,15 @@ export default function SuiConnApp() {
   const [customSplitAmounts, setCustomSplitAmounts] = useState('');
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [splitDeadline, setSplitDeadline] = useState('');
 
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
-  // New state for user settings
-  const [enableRateLimiting, setEnableRateLimiting] = useState(true);
-  const [enableFriendVerification, setEnableFriendVerification] = useState(true);
-  const [customDailyLimit, setCustomDailyLimit] = useState(100);
+  // New state for payment section view
+  const [paymentAction, setPaymentAction] = useState<'none' | 'send' | 'split' | 'batch'>('none');
 
   // Add new state for split payment recipient
   const [splitRecipient, setSplitRecipient] = useState('');
@@ -157,16 +156,10 @@ export default function SuiConnApp() {
           last_friend_request_time: parseInt(profileData.last_friend_request_time) || 0,
           total_payments_sent: parseInt(profileData.total_payments_sent) || 0,
           total_payments_received: parseInt(profileData.total_payments_received) || 0,
-          enable_rate_limiting: profileData.enable_rate_limiting || false,
-          enable_friend_verification: profileData.enable_friend_verification || false,
-          custom_daily_limit: parseInt(profileData.custom_daily_limit) || 0,
         };
         
         setUserProfile(profile);
         setUsername(profile.username);
-        setEnableRateLimiting(profile.enable_rate_limiting);
-        setEnableFriendVerification(profile.enable_friend_verification);
-        setCustomDailyLimit(profile.custom_daily_limit);
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
@@ -751,11 +744,21 @@ export default function SuiConnApp() {
         return;
       }
 
+      // Handle payment deadline as Option<u64>
+      let deadlineOption: any = { None: true };
+      if (splitDeadline && splitDeadline.trim() !== '') {
+        const ms = Date.parse(splitDeadline);
+        if (!isNaN(ms)) {
+          deadlineOption = { Some: [BigInt(ms)] };
+        }
+      }
+
       console.log('Creating custom split payment with:', {
         title: splitTitle,
         participants: participantAddresses,
         amounts,
-        recipientAddress
+        recipientAddress,
+        deadlineOption
       });
 
       executeTransaction((tx) => {
@@ -763,10 +766,12 @@ export default function SuiConnApp() {
           target: `${PACKAGE_ID}::suiconn::create_custom_split_payment`,
           arguments: [
             tx.object(REGISTRY_OBJECT_ID),
+            tx.object(ACCESS_CONTROL_ID),
             tx.pure.string(splitTitle),
             tx.pure.vector('string', participants), // Send usernames as expected by contract
             tx.pure.vector('u64', amounts),
             tx.pure.address(recipientAddress),
+            tx.pure(deadlineOption), // Option<u64> for payment_deadline
             tx.object('0x6'),
           ],
         });
@@ -787,51 +792,6 @@ export default function SuiConnApp() {
         ],
       });
     }, 'Split payment contribution made!');
-  };
-
-  // New handler for updating user settings
-  const handleUpdateUserSettings = () => {
-    if (!userProfile) return;
-    executeTransaction((tx) => {
-      tx.moveCall({
-        target: `${PACKAGE_ID}::suiconn::update_user_settings`,
-        arguments: [
-          tx.object(REGISTRY_OBJECT_ID),
-          tx.pure.bool(enableRateLimiting),
-          tx.pure.bool(enableFriendVerification),
-          tx.pure.u64(customDailyLimit),
-          tx.object('0x6'),
-        ],
-      });
-    }, 'User settings updated!');
-  };
-
-  // New handler for deactivating account
-  const handleDeactivateSelf = () => {
-    if (!userProfile) return;
-     executeTransaction((tx) => {
-       tx.moveCall({
-         target: `${PACKAGE_ID}::suiconn::deactivate_self`,
-         arguments: [
-           tx.object(REGISTRY_OBJECT_ID),
-           tx.object('0x6'),
-         ],
-       });
-     }, 'Account deactivated!');
-   };
-
-  // New handler for reactivating account
-  const handleReactivateSelf = () => {
-    if (!userProfile) return;
-    executeTransaction((tx) => {
-      tx.moveCall({
-        target: `${PACKAGE_ID}::suiconn::reactivate_self`,
-        arguments: [
-          tx.object(REGISTRY_OBJECT_ID),
-          tx.object('0x6'),
-        ],
-      });
-    }, 'Account reactivated!');
   };
 
   // Auto-dismiss messages
@@ -859,42 +819,43 @@ export default function SuiConnApp() {
             <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
               <CardTitle className="text-xl font-bold text-white mb-4">Your Profile</CardTitle>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 text-center shadow-md">
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.username}
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-xs text-gray-300">
                     Username
                   </div>
                 </Card>
-                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 text-center shadow-md">
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}>
                     {friends.length}
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-xs text-gray-300">
                     Friends
                   </div>
                 </Card>
-                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 text-center shadow-md">
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.total_payments_sent}
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-xs text-gray-300">
                     Payments Sent
                   </div>
                 </Card>
-                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 text-center shadow-md">
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.total_payments_received}
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-xs text-gray-300">
                     Payments Received
                   </div>
                 </Card>
               </div>
               <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mt-6">
-                <div className="text-sm text-gray-300">
+                <div className="text-sm text-gray-300 flex items-center gap-2">
                   <strong>Address:</strong> {formatAddress(account?.address || '')}
+                  <CopyButton text={account?.address || ''} onCopy={setSuccess} />
                 </div>
                 <div className="text-sm text-gray-300">
                   <strong>Status:</strong> {userProfile?.is_active ? 'Active' : 'Inactive'}
@@ -910,11 +871,11 @@ export default function SuiConnApp() {
               <CardTitle className="text-xl font-bold text-white mb-4">Recent Split Payments</CardTitle>
               {splitPayments.length > 0 ? (
                 splitPayments.slice(0, 3).map((split, index) => (
-                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
-                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
+                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px', fontSize: '16px' }}>
                       {split.title}
                     </div>
-                    <div className="text-sm text-gray-300">
+                    <div className="text-xs text-gray-300">
                       Total: {formatMistToSui(split.total_amount)} | 
                       Creator: {split.creator} | 
                       Status: {split.status === 'completed' ? 'Completed' : 'Pending'}
@@ -974,7 +935,7 @@ export default function SuiConnApp() {
               <CardTitle className="text-xl font-bold text-white mb-4">Pending Requests ({friendRequests.length})</CardTitle>
               {friendRequests.length > 0 ? (
                 friendRequests.map((req, index) => (
-                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                     <div style={{ marginBottom: '10px' }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
                         {req.fromUsername}
@@ -1019,19 +980,22 @@ export default function SuiConnApp() {
                     .reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
                   
                   return (
-                    <div key={friend.address} className="flex items-center justify-between p-4 bg-white rounded-lg shadow">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-lg font-semibold text-primary">
+                    <div key={friend.address} className="flex items-center justify-between p-3 bg-white rounded-lg shadow">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-semibold text-primary">
                             {friend.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{friend.username}</p>
-                          <p className="text-sm text-gray-500">{friend.address}</p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <p className="text-xs text-gray-500">{formatAddress(friend.address)}</p>
+                            <CopyButton text={friend.address} onCopy={setSuccess} />
+                          </div>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-1">
                         <Button
                           variant="outline"
                           size="sm"
@@ -1060,339 +1024,320 @@ export default function SuiConnApp() {
       case 'payments':
         return (
           <div className="space-y-6">
-            {/* Send Payment */}
-            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Send Payment</CardTitle>
-              <div className="flex items-center gap-3 mb-4">
-                <input
-                  type="text"
-                  value={paymentRecipient}
-                  onChange={(e) => setPaymentRecipient(e.target.value)}
-                  placeholder="Recipient username"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
-                  style={{ marginBottom: 0 }}
-                  disabled
-                />
-                <button 
-                  onClick={() => openFriendSelector('payment')}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                  disabled={friends.length === 0}
-                >
-                  <svg
-                    className="inline-block mr-2 w-5 h-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+            {paymentAction === 'none' && (
+              <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+                <CardTitle className="text-xl font-bold text-white mb-4">Choose Payment Type</CardTitle>
+                <div className="grid grid-cols-1 gap-4">
+                  <Button
+                    onClick={() => setPaymentAction('send')}
+                    className="px-4 py-3 rounded-xl font-medium bg-gradient-to-r from-cyan-600 to-blue-700 text-white border border-cyan-500"
                   >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  Select
-                </button>
-              </div>
-              <input
-                type="number"
-                step="0.000000001"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="Amount in SUI (e.g., 0.001)"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-              />
-              <input
-                type="text"
-                value={paymentMemo}
-                onChange={(e) => setPaymentMemo(e.target.value)}
-                placeholder="Memo (optional)"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-              />
-              <button 
-                onClick={handleSendPayment} 
-                disabled={loading || !paymentRecipient || !paymentAmount}
-                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full">
-                <svg
-                  className="inline-block mr-2 w-5 h-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-                {loading ? 'Sending...' : 'Send Payment'}
-              </button>
-            </Card>
+                    Send Direct Payment
+                  </Button>
+                  <Button
+                    onClick={() => setPaymentAction('split')}
+                    className="px-4 py-3 rounded-xl font-medium bg-gradient-to-r from-emerald-600 to-teal-700 text-white border border-emerald-500"
+                  >
+                    Create Split Payment
+                  </Button>
+                  <Button
+                    onClick={() => setPaymentAction('batch')}
+                    className="px-4 py-3 rounded-xl font-medium bg-gradient-to-r from-purple-600 to-indigo-700 text-white border border-purple-500"
+                  >
+                    Batch Payment
+                  </Button>
+                </div>
+              </Card>
+            )}
 
-            {/* Batch Payment */}
-            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Batch Payment</CardTitle>
-              {/* Batch Payment Interface */}
-              {batchPayments.map((batch, index) => (
-                <div key={index} className="space-y-3 mb-4 p-4 bg-white/5 border border-white/10 rounded-xl">
-                  <div className="flex items-center gap-3">
+            {paymentAction !== 'none' && (
+              <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+                <button
+                  onClick={() => setPaymentAction('none')}
+                  className="mb-4 px-3 py-1 text-sm rounded-lg bg-white/10 text-white hover:bg-white/20"
+                >
+                  ← Back to Payment Options
+                </button>
+
+                {/* Send Payment Form */}
+                {paymentAction === 'send' && (
+                  <div className="space-y-4">
+                    <CardTitle className="text-xl font-bold text-white mb-4">Send Direct Payment</CardTitle>
+                    <div className="flex items-center gap-3 mb-4">
+                      <input
+                        type="text"
+                        value={paymentRecipient}
+                        onChange={(e) => setPaymentRecipient(e.target.value)}
+                        placeholder="Recipient username"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
+                        style={{ marginBottom: 0 }}
+                        disabled
+                      />
+                      <button
+                        onClick={() => openFriendSelector('payment')}
+                        className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                        disabled={friends.length === 0}
+                      >
+                        Select
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.000000001"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="Amount in SUI (e.g., 0.001)"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                    />
                     <input
                       type="text"
-                      value={batch.recipient}
-                      onChange={(e) => updateBatchPayment(index, 'recipient', e.target.value)}
-                      placeholder="Recipient username"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
-                      disabled
+                      value={paymentMemo}
+                      onChange={(e) => setPaymentMemo(e.target.value)}
+                      placeholder="Memo (optional)"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                     />
-                     <button 
-                      onClick={() => openFriendSelector('batch')}
-                      className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                      disabled={friends.length === 0}
+                    <button
+                      onClick={handleSendPayment}
+                      disabled={loading || !paymentRecipient || !paymentAmount}
+                      className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full"
                     >
-                      Select
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                      {loading ? 'Sending...' : 'Send Payment'}
                     </button>
                   </div>
-                  <input
-                    type="number"
-                    step="0.000000001"
-                    value={batch.amount}
-                    onChange={(e) => updateBatchPayment(index, 'amount', parseFloat(e.target.value))}
-                    placeholder="Amount in SUI"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                  />
-                  <input
-                    type="text"
-                    value={batch.memo}
-                    onChange={(e) => updateBatchPayment(index, 'memo', e.target.value)}
-                    placeholder="Memo (optional)"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                  />
-                  {batchPayments.length > 1 && (
+                )}
+
+                {/* Create Split Payment Form */}
+                {paymentAction === 'split' && (
+                  <div className="space-y-4">
+                    <CardTitle className="text-xl font-bold text-white mb-4">Create Split Payment</CardTitle>
+
+                    {/* Split Type Selector */}
+                    <div style={{ marginBottom: '20px' }}>
+                      <div className="text-sm font-medium text-white/90 mb-2">Split Type:</div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          onClick={() => setSplitType('equal')}
+                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'equal' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                          style={{ flex: 1 }}
+                        >
+                          Equal Split
+                        </button>
+                        <button
+                          onClick={() => setSplitType('custom')}
+                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'custom' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                          style={{ flex: 1 }}
+                        >
+                          Custom Split
+                        </button>
+                      </div>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={splitTitle}
+                      onChange={(e) => setSplitTitle(e.target.value)}
+                      placeholder="Split title (e.g., Dinner bill)"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                    />
+
+                    {/* Add recipient selection */}
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input
+                        type="text"
+                        value={splitRecipient}
+                        onChange={(e) => setSplitRecipient(e.target.value)}
+                        placeholder="Recipient address or username"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                        style={{ marginBottom: 0, flex: 1 }}
+                      />
+                      <button
+                        onClick={() => openFriendSelector('recipient')}
+                        className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                        style={{ width: 'auto' }}
+                        disabled={friends.length === 0}
+                      >
+                        Select from Friends
+                      </button>
+                      <button
+                        onClick={() => account?.address && setSplitRecipient(account.address)}
+                        className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-purple-600 to-indigo-700 text-white hover:from-purple-500 hover:to-indigo-600 shadow-lg shadow-purple-500/30 border-purple-500 flex-shrink-0"
+                        style={{ width: 'auto' }}
+                        disabled={!account?.address}
+                      >
+                        Select Self
+                      </button>
+                    </div>
+
+                    {splitType === 'equal' ? (
+                      <input
+                        type="number"
+                        step="0.000000001"
+                        value={splitAmount}
+                        onChange={(e) => setSplitAmount(e.target.value)}
+                        placeholder="Total amount in SUI"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={customSplitAmounts}
+                        onChange={(e) => setCustomSplitAmounts(e.target.value)}
+                        placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                      />
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input
+                        type="text"
+                        value={splitParticipants}
+                        onChange={(e) => setSplitParticipants(e.target.value)}
+                        placeholder="Participants (comma-separated usernames)"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                        style={{ marginBottom: 0, flex: 1 }}
+                      />
+                      <button
+                        onClick={() => openFriendSelector('split')}
+                        className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                        style={{ width: 'auto' }}
+                        disabled={friends.length === 0}
+                      >
+                        Select Participants
+                      </button>
+                    </div>
+
+                    {/* Add deadline input */}
+                    <input
+                      type="datetime-local"
+                      value={splitDeadline}
+                      onChange={(e) => setSplitDeadline(e.target.value)}
+                      placeholder="Payment deadline (optional)"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                    />
+
                     <button
-                      onClick={() => removeBatchPaymentRow(index)}
-                      className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 w-full mt-2">
-                      Remove Payment
+                      onClick={handleCreateSplitPayment}
+                      disabled={loading || !splitTitle || !splitRecipient ||
+                        (splitType === 'equal' && (!splitAmount || !splitParticipants)) ||
+                        (splitType === 'custom' && (!customSplitAmounts || !splitParticipants))
+                      }
+                      className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full"
+                    >
+                      {loading ? 'Creating...' : `Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
                     </button>
-                  )}
-                </div>
-              ))}
-              <button 
-                onClick={addBatchPaymentRow}
-                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-amber-600 to-orange-700 text-white hover:from-amber-500 hover:to-orange-600 shadow-lg shadow-amber-500/30 border-amber-500 w-full">
-                Add Another Payment
-              </button>
-              <button 
-                onClick={handleBatchPayment} 
-                disabled={loading || batchPayments.length === 0 || batchPayments.some(b => !b.recipient || b.amount <= 0)}
-                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full mt-4">
-                {loading ? 'Sending Batch...' : `Send Batch Payment (${batchPayments.length})`}
-              </button>
-            </Card>
+                  </div>
+                )}
 
-            {/* Split Payments */}
-            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Create Split Payment</CardTitle>
-
-              {/* Split Type Selector */}
-              <div style={{ marginBottom: '20px' }}>
-                <div className="text-sm font-medium text-white/90 mb-2">Split Type:</div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    onClick={() => setSplitType('equal')}
-                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'equal' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
-                    style={{ flex: 1 }}
-                  >
-                    Equal Split
-                  </button>
-                  <button
-                    onClick={() => setSplitType('custom')}
-                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'custom' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
-                    style={{ flex: 1 }}
-                  >
-                    Custom Split
-                  </button>
-                </div>
-              </div>
-
-              <input
-                type="text"
-                value={splitTitle}
-                onChange={(e) => setSplitTitle(e.target.value)}
-                placeholder="Split title (e.g., Dinner bill)"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-              />
-
-              {/* Add recipient selection */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                <input
-                  type="text"
-                  value={splitRecipient}
-                  onChange={(e) => setSplitRecipient(e.target.value)}
-                  placeholder="Recipient address or username"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                  style={{ marginBottom: 0, flex: 1 }}
-                />
-                <button 
-                  onClick={() => openFriendSelector('recipient')}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                  style={{ width: 'auto' }}
-                >
-                  Select from Friends
-                </button>
-                <button 
-                  onClick={() => account?.address && setSplitRecipient(account.address)}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-purple-600 to-indigo-700 text-white hover:from-purple-500 hover:to-indigo-600 shadow-lg shadow-purple-500/30 border-purple-500 flex-shrink-0"
-                  style={{ width: 'auto' }}
-                  disabled={!account?.address}
-                >
-                  Select Self
-                </button>
-              </div>
-
-              {splitType === 'equal' ? (
-                <input
-                  type="number"
-                  step="0.000000001"
-                  value={splitAmount}
-                  onChange={(e) => setSplitAmount(e.target.value)}
-                  placeholder="Total amount in SUI"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={customSplitAmounts}
-                  onChange={(e) => setCustomSplitAmounts(e.target.value)}
-                  placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                />
-              )}
-
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                <input
-                  type="text"
-                  value={splitParticipants}
-                  onChange={(e) => setSplitParticipants(e.target.value)}
-                  placeholder="Participants (comma-separated usernames)"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                  style={{ marginBottom: 0, flex: 1 }}
-                />
-                <button 
-                  onClick={() => openFriendSelector('split')}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                  style={{ width: 'auto' }}
-                  disabled={friends.length === 0}
-                >
-                  Select Participants
-                </button>
-              </div>
-
-              <button 
-                onClick={handleCreateSplitPayment}
-                disabled={loading || !splitTitle || !splitRecipient || 
-                  (splitType === 'equal' && (!splitAmount || !splitParticipants)) ||
-                  (splitType === 'custom' && (!customSplitAmounts || !splitParticipants))
-                }
-                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full">
-                {loading ? 'Creating...' : `Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
-              </button>
-            </Card>
+                {/* Batch Payment Form */}
+                {paymentAction === 'batch' && (
+                  <div className="space-y-4">
+                    <CardTitle className="text-xl font-bold text-white mb-4">Batch Payment</CardTitle>
+                    {/* Batch Payment Interface */}
+                    {batchPayments.map((batch, index) => (
+                      <div key={index} className="space-y-3 mb-4 p-4 bg-white/5 border border-white/10 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={batch.recipient}
+                            onChange={(e) => updateBatchPayment(index, 'recipient', e.target.value)}
+                            placeholder="Recipient username"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
+                            disabled
+                          />
+                          <button
+                            onClick={() => openFriendSelector('batch')}
+                            className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                            disabled={friends.length === 0}
+                          >
+                            Select
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.000000001"
+                          value={batch.amount}
+                          onChange={(e) => updateBatchPayment(index, 'amount', parseFloat(e.target.value))}
+                          placeholder="Amount in SUI"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                        />
+                        <input
+                          type="text"
+                          value={batch.memo}
+                          onChange={(e) => updateBatchPayment(index, 'memo', e.target.value)}
+                          placeholder="Memo (optional)"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                        />
+                        {batchPayments.length > 1 && (
+                          <button
+                            onClick={() => removeBatchPaymentRow(index)}
+                            className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 w-full mt-2"
+                          >
+                            Remove Payment
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      onClick={addBatchPaymentRow}
+                      className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-amber-600 to-orange-700 text-white hover:from-amber-500 hover:to-orange-600 shadow-lg shadow-amber-500/30 border-amber-500 w-full"
+                    >
+                      Add Another Payment
+                    </button>
+                    <button
+                      onClick={handleBatchPayment}
+                      disabled={loading || batchPayments.length === 0 || batchPayments.some(b => !b.recipient || b.amount <= 0)}
+                      className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full mt-4"
+                    >
+                      {loading ? 'Sending Batch...' : `Send Batch Payment (${batchPayments.length})`}
+                    </button>
+                  </div>
+                )}
+              </Card>
+            )}
           </div>
         );
 
       case 'splits':
         return (
-          <div>
+          <div className="space-y-6">
+            {/* Split Payments Overview */}
             <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Your Split Payments ({splitPayments.length})</CardTitle>
+              <CardTitle className="text-xl font-bold text-white mb-4">Recent Split Payments</CardTitle>
               {splitPayments.length > 0 ? (
-                splitPayments.map((split, index) => {
-                  const userParticipant = split.participants.find(p => p.address === account?.address);
-                  const isCreator = split.creator === account?.address;
-                  
-                  return (
-                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
-                      <div style={{ marginBottom: '15px' }}>
-                        <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '10px' }}>
-                          {split.title}
-                        </div>
-                        <div className="text-sm text-gray-300">
-                          <strong>Total:</strong> {formatMistToSui(split.total_amount)}
-                        </div>
-                        <div className="text-sm text-gray-300">
-                          <strong>Creator:</strong> {split.creator} {isCreator && '(You)'}
-                        </div>
-                        <div className="text-sm text-gray-300">
-                          <strong>Status:</strong> {split.status === 'completed' ? 'Completed' : 'Pending'}
-                        </div>
-                        <div className="text-sm text-gray-300">
-                          <strong>Created:</strong> {new Date(split.created_at).toLocaleString()}
-                        </div>
-                        {split.status === 'pending' && (
-                          <div className="text-sm text-gray-300">
-                            <strong>Collected:</strong> {formatMistToSui(split.collected_amount)} SUI
-                          </div>
-                        )}
-                        {split.status === 'completed' && (
-                          <div className="text-sm text-gray-300">
-                            <strong>Collected:</strong> {formatMistToSui(split.collected_amount)} SUI
-                          </div>
-                        )}
-                        <div className="text-sm text-gray-300">
-                          <strong>Recipient:</strong> {split.recipient_address}
-                        </div>
-
-                        {/* Participants */}
-                        <div className="text-sm text-gray-300 mt-2">
-                          Participants:
-                        </div>
-                        <div className="space-y-2">
-                          {split.participants.map((participant, pIndex) => (
-                            <div key={pIndex} className="flex justify-between items-center">
-                              <span>
-                                {participant.username}: {formatMistToSui(participant.amount_owed)}
-                                {participant.address === account?.address && ' (You)'}
-                              </span>
-                              <span style={{ 
-                                fontSize: '12px',
-                                color: participant.has_paid ? '#4CAF50' : '#FF9800'
-                              }}>
-                                {participant.has_paid ? 'Paid' : 'Pending'}
-                                {participant.paid_at && ` (${new Date(participant.paid_at).toLocaleString()})`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {/* Action buttons */}
-                        {userParticipant && !userParticipant.has_paid && split.status !== 'completed' && (
-                          <button 
-                            onClick={() => handlePaySplitAmount(split.id, userParticipant.amount_owed)}
-                            className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 mt-4">
-                            {loading ? 'Paying...' : `Pay ${formatMistToSui(userParticipant.amount_owed)}`}
-                          </button>
-                        )}
-                        
-                        {userParticipant && userParticipant.has_paid && (
-                          <div className="text-sm text-gray-300 mt-2">
-                            You have paid your share
-                          </div>
-                        )}
-                        
-                        {isCreator && (
-                          <div className="text-sm text-gray-300 mt-2">
-                            You created this split
-                          </div>
-                        )}
-                      </div>
+                splitPayments.slice(0, 3).map((split, index) => (
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
+                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px', fontSize: '16px' }}>
+                      {split.title}
                     </div>
-                  );
-                })
+                    <div className="text-xs text-gray-300">
+                      Total: {formatMistToSui(split.total_amount)} | 
+                      Creator: {split.creator} | 
+                      Status: {split.status === 'completed' ? 'Completed' : 'Pending'}
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-sm text-gray-300">No split payments found where you are a participant.</div>
+                <div className="text-sm text-gray-300">No split payments</div>
+              )}
+              {splitPayments.length > 3 && (
+                <button
+                  onClick={() => setActiveTab('splits')}
+                  className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 mt-4">
+                  View All Split Payments
+                </button>
               )}
             </Card>
           </div>
@@ -1400,139 +1345,35 @@ export default function SuiConnApp() {
 
       case 'history':
         return (
-          <div>
-            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Transaction History ({paymentHistory.length})</CardTitle>
-              {paymentHistory.length > 0 ? (
-                paymentHistory.map((record, index) => {
-                  const isOutgoing = record.from === account?.address;
-                  const paymentTypeText = record.payment_type === 'direct' ? 'Direct Payment' :
-                    record.payment_type === 'split' ? 'Split Payment' :
-                    record.payment_type === 'batch' ? 'Batch Payment' : 'Unknown';
-                  const statusText = record.status === 'completed' ? 'Completed'
-                    : record.status === 'failed' ? 'Failed'
-                    : record.status === 'pending' ? 'Pending'
-                    : 'Unknown';
-
-                  return (
-                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
-                      <div style={{ 
-                        fontWeight: '600', 
-                        color: '#fff', 
-                        marginBottom: '5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        {isOutgoing ? 'Sent' : 'Received'} - {paymentTypeText}
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        {isOutgoing ? `To: ${record.toUsername}` : `From: ${record.fromUsername}`}
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        Amount: {formatMistToSui(record.amount)}
-                      </div>
-                      {record.memo && (
-                        <div className="text-sm text-gray-300">
-                          Memo: {record.memo}
-                        </div>
-                      )}
-                      <div className="text-sm text-gray-300">
-                        {new Date(record.timestamp).toLocaleString()} - {statusText}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-sm text-gray-300">No transaction history</div>
-              )}
-            </Card>
-          </div>
-        );
-
-      case 'settings':
-        return (
           <div className="space-y-6">
+            {/* Transaction History */}
             <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">User Settings</CardTitle>
-              {userProfile ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={enableRateLimiting}
-                        onChange={(e) => setEnableRateLimiting(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-cyan-500 bg-white/10 border-white/20 rounded focus:ring-cyan-500"
-                      />
-                      <span className="text-white">Enable Payment Rate Limiting</span>
-                    </label>
-                    <p className="text-sm text-gray-400 mt-1">Limits payment frequency to prevent spam.</p>
+              <CardTitle className="text-xl font-bold text-white mb-4">Transaction History</CardTitle>
+              {paymentHistory.length > 0 ? (
+                paymentHistory.slice(0, 3).map((record, index) => (
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
+                    <div className="font-medium text-white mb-1">
+                      {record.fromUsername} - {formatMistToSui(record.amount)}
+                    </div>
+                    <div className="text-xs text-gray-300">
+                      {new Date(record.timestamp).toLocaleDateString()}
+                    </div>
+                    {record.memo && (
+                      <div className="text-xs text-gray-300 mt-1">
+                        Memo: {record.memo}
+                      </div>
+                    )}
                   </div>
-
-                  <div>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={enableFriendVerification}
-                        onChange={(e) => setEnableFriendVerification(e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-cyan-500 bg-white/10 border-white/20 rounded focus:ring-cyan-500"
-                      />
-                      <span className="text-white">Require Friend Verification for Payments</span>
-                    </label>
-                    <p className="text-sm text-gray-400 mt-1">Only allow payments to users on your friends list.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-white mb-2" htmlFor="customDailyLimit">Custom Daily Payment Limit:</label>
-                    <input
-                      id="customDailyLimit"
-                      type="number"
-                      value={customDailyLimit}
-                      onChange={(e) => setCustomDailyLimit(parseInt(e.target.value))}
-                      placeholder="Enter limit"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                      min="1"
-                    />
-                    <p className="text-sm text-gray-400 mt-1">Set your personal daily limit for direct payments.</p>
-                  </div>
-
-                  <button
-                    onClick={handleUpdateUserSettings}
-                    disabled={loading}
-                    className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 w-full"
-                  >
-                    {loading ? 'Saving...' : 'Save Settings'}
-                  </button>
-                </div>
+                ))
               ) : (
-                <div className="text-sm text-gray-300">Load your profile to manage settings.</div>
+                <div className="text-white/70 text-center py-4">No transactions found</div>
               )}
-            </Card>
-
-            {/* Account Management */}
-            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Account Management</CardTitle>
-              {userProfile ? (
-                userProfile.is_active ? (
-                  <button
-                    onClick={handleDeactivateSelf}
-                    disabled={loading}
-                    className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 w-full"
-                  >
-                    {loading ? 'Deactivating...' : 'Deactivate Account'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleReactivateSelf}
-                    disabled={loading}
-                    className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full"
-                  >
-                    {loading ? 'Reactivating...' : 'Reactivate Account'}
-                  </button>
-                )
-              ) : (
-                <div className="text-sm text-gray-300">Load your profile to manage your account status.</div>
+              {paymentHistory.length > 3 && (
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 mt-4">
+                  View All Transactions
+                </button>
               )}
             </Card>
           </div>
@@ -1597,15 +1438,15 @@ export default function SuiConnApp() {
             friendHistory.map((record, index) => {
               const isOutgoing = record.from === account?.address;
               return (
-                <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
+                <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                   <div className="font-medium text-white mb-1">
                     {isOutgoing ? 'Sent' : 'Received'} - {formatMistToSui(record.amount)}
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-xs text-gray-300">
                     {new Date(record.timestamp).toLocaleDateString()}
                   </div>
                   {record.memo && (
-                    <div className="text-sm text-gray-300 mt-1">
+                    <div className="text-xs text-gray-300 mt-1">
                       Memo: {record.memo}
                     </div>
                   )}
@@ -1633,14 +1474,14 @@ export default function SuiConnApp() {
       <CoralReef />
 
       {/* Animated Background Elements */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 hidden sm:block">
         <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-60 right-32 w-80 h-80 bg-gradient-to-r from-purple-400/15 to-pink-600/15 rounded-full blur-3xl animate-bounce" style={{ animationDuration: '8s' }}></div>
         <div className="absolute bottom-40 left-1/3 w-64 h-64 bg-gradient-to-r from-emerald-400/10 to-teal-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 sm:px-6 py-8 relative z-50">
+      <div className="container mx-auto px-1 sm:px-4 py-2 sm:py-4 relative z-50 max-w-4xl">
         {/* Use the new SuiConnUI component, passing only the defined props */}
         <SuiConnUI
           userProfile={userProfile}
@@ -1717,7 +1558,7 @@ export default function SuiConnApp() {
                       <span className="text-sm font-medium text-indigo-300">
                         {friend.username.charAt(0).toUpperCase()}
                       </span>
-                    </div>
+                  </div>
                     <div>
                       <div className="text-white font-medium">{friend.username}</div>
                       <div className="text-sm text-gray-400">{formatAddress(friend.address)}</div>
@@ -1754,136 +1595,15 @@ export default function SuiConnApp() {
   );
 }
 
-// Update the styles at the bottom of the file to add glowing/bright effects
-const styles = `
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translate(-50%, 1rem);
-    }
-    to {
-      opacity: 1;
-      transform: translate(-50%, 0);
-    }
-  }
-
-  .animate-fade-in-up {
-    animation: fade-in-up 0.3s ease-out;
-  }
-
-  .suiconn-input {
-    @apply w-full px-4 py-3 bg-white/15 border border-indigo-300/60 rounded-xl text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/80 focus:border-transparent transition-all duration-200;
-  }
-
-  .suiconn-button {
-    @apply px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border;
-  }
-
-  .suiconn-button.primary {
-    @apply bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/50 border-cyan-500;
-  }
-
-  .suiconn-button.success {
-    @apply bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-400 hover:to-teal-500 shadow-lg shadow-emerald-500/50 border-emerald-500;
-  }
-
-  .suiconn-button.warning {
-    @apply bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 shadow-lg shadow-amber-500/50 border-amber-500;
-  }
-
-  .suiconn-button.danger {
-    @apply bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-400 hover:to-pink-500 shadow-lg shadow-rose-500/50 border-rose-500;
-  }
-
-  .suiconn-button.small {
-    @apply px-3 py-2 text-sm;
-  }
-
-  .suiconn-glass-card {
-    @apply backdrop-blur-xl bg-white/10 border border-indigo-400/30 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 shadow-indigo-500/20;
-  }
-
-  .suiconn-card-title {
-    @apply text-xl font-bold text-white mb-4;
-  }
-
-  .suiconn-card-subtitle {
-    @apply text-sm font-medium text-white/90 mb-2;
-  }
-
-  .suiconn-card-text {
-    @apply text-sm text-white/80;
-  }
-
-  .suiconn-stat-grid {
-    @apply grid grid-cols-2 sm:grid-cols-4 gap-4;
-  }
-
-  .suiconn-stat-card {
-    @apply backdrop-blur-xl bg-white/15 border border-indigo-400/40 rounded-xl p-4 text-center hover:bg-white/20 transition-all duration-200 shadow-indigo-500/20;
-  }
-
-  .suiconn-notification {
-    @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border transition-all duration-200;
-  }
-
-  .suiconn-notification.error {
-    @apply bg-rose-500/90 border-rose-400/30 shadow-rose-500/40;
-  }
-
-  .suiconn-notification.success {
-    @apply bg-emerald-500/90 border-emerald-400/30 shadow-emerald-500/40;
-  }
-
-  .suiconn-notification.loading {
-    @apply bg-indigo-500/90 border-indigo-400/30 shadow-indigo-500/40;
-  }
-
-  /* Dialog styles */
-  .suiconn-dialog {
-    @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50;
-  }
-
-  .suiconn-dialog-content {
-    @apply suiconn-glass-card max-w-md w-full mx-4;
-  }
-
-  /* Friend selector styles */
-  .suiconn-friend-selector {
-    @apply p-3 rounded-xl cursor-pointer transition-colors duration-150;
-  }
-
-  .suiconn-friend-selector.selected {
-    @apply bg-indigo-500/50 border border-indigo-400/70 shadow-indigo-500/30;
-  }
-
-  .suiconn-friend-selector:not(.selected) {
-    @apply bg-white/15 border border-white/25;
-  }
-
-  /* Tab styles */
-  .suiconn-tab {
-    @apply px-4 py-2 transition-colors duration-200;
-  }
-
-  .suiconn-tab.active {
-    @apply text-cyan-300 border-b-2 border-cyan-300;
-  }
-
-  .suiconn-tab:not(.active) {
-    @apply text-white/80 hover:text-cyan-300;
-  }
-
-  /* Transaction history styles */
-  .suiconn-transaction {
-    @apply suiconn-glass-card mb-3;
-  }
-
-  .suiconn-transaction.sent {
-    @apply bg-amber-500/20 border-amber-500/40 shadow-amber-500/20;
-  }
-
-  .suiconn-transaction.received {
-    @apply bg-emerald-500/20 border-emerald-500/40 shadow-emerald-500/20;
-  }
-`;
+// Add copy button component
+const CopyButton = ({ text, onCopy }: { text: string, onCopy: (message: string) => void }) => (
+  <button
+    onClick={() => {
+      navigator.clipboard.writeText(text);
+      onCopy('Address copied to clipboard!');
+    }}
+    className="px-2 py-1 text-xs rounded-lg bg-white/10 text-white hover:bg-white/20"
+  >
+    Copy
+  </button>
+);
