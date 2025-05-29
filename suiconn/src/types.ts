@@ -3,30 +3,29 @@ export interface UserProfile {
   address: string;
   friends: string[];
   created_at: number;
-  is_active: boolean;
   last_payment_time: number;
   daily_payment_count: number;
   last_friend_request_time: number;
   total_payments_sent: number;
   total_payments_received: number;
-  enable_rate_limiting: boolean;
-  enable_friend_verification: boolean;
-  custom_daily_limit: number;
+  is_active: boolean;
 }
 
 export interface FriendRequest {
   id: string;
   from: string;
   to: string;
-  status: number;
+  status: 'pending' | 'accepted' | 'rejected';
   created_at: number;
   updated_at: number;
   fromUsername?: string;
+  toUsername?: string;
 }
 
 export interface Friend {
-  addr: string;
-  name: string;
+  address: string;
+  username: string;
+  added_at: number;
 }
 
 export interface SplitPayment {
@@ -35,6 +34,7 @@ export interface SplitPayment {
   title: string;
   total_amount: number;
   participants: SplitParticipant[];
+  status: 'pending' | 'completed';
   created_at: number;
   completed_at: number | null;
   is_completed: boolean;
@@ -59,16 +59,29 @@ export interface PaymentRecord {
   to: string;
   amount: number;
   memo: string;
-  payment_type: number;
+  payment_type: 'direct' | 'split' | 'batch';
   related_id: string | null;
   timestamp: number;
-  status: number;
+  status: 'completed' | 'failed';
   fromUsername?: string;
   toUsername?: string;
 }
 
 export interface BatchPayment {
-  recipients: string[];
-  amounts: string[];
-  memos: string[];
+  id: string;
+  creator: string;
+  payments: BatchPaymentItem[];
+  status: 'pending' | 'completed';
+  created_at: number;
+  completed_at: number | null;
+  is_completed: boolean;
+  creatorUsername?: string;
+}
+
+export interface BatchPaymentItem {
+  recipient: string;
+  amount: number;
+  memo: string;
+  status: 'pending' | 'completed' | 'failed';
+  recipientUsername?: string;
 } 
