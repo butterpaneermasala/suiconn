@@ -25,8 +25,9 @@ export interface FriendRequest {
 }
 
 export interface Friend {
-  addr: string;
-  name: string;
+  address: string;
+  username: string;
+  added_at: number;
 }
 
 export interface SplitPayment {

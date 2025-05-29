@@ -1,3 +1,4 @@
+#[allow(unused_const, duplicate_alias)]
 module suiconn::suiconn {
     use sui::object::{Self, UID, ID};
     use sui::tx_context::{Self, TxContext};
@@ -228,6 +229,20 @@ module suiconn::suiconn {
         completed_at: u64,
     }
 
+    // Add new struct for split payment access control
+    public struct SplitPaymentAccess has store {
+        split_id: ID,
+        user_address: address,
+        is_creator: bool,
+        is_participant: bool,
+    }
+
+    // Add new table for split payment access control
+    public struct SplitPaymentAccessTable has key {
+        id: UID,
+        access_control: Table<address, vector<SplitPaymentAccess>>,
+    }
+
     // Initialize the platform - completely decentralized
     fun init(ctx: &mut TxContext) {
         let registry = PlatformRegistry {
@@ -242,12 +257,18 @@ module suiconn::suiconn {
             platform_balance: balance::zero(),
         };
         
+        let access_control = SplitPaymentAccessTable {
+            id: object::new(ctx),
+            access_control: table::new(ctx),
+        };
+        
         transfer::share_object(registry);
+        transfer::share_object(access_control);
     }
 
     // Helper function to validate username characters
     fun is_valid_username(username: &String): bool {
-        let username_bytes = string::bytes(username);
+        let username_bytes = string::as_bytes(username);
         let mut i = 0;
         while (i < vector::length(username_bytes)) {
             let byte = *vector::borrow(username_bytes, i);
@@ -409,6 +430,7 @@ module suiconn::suiconn {
     // Split Payment System
     public entry fun create_split_payment(
         registry: &mut PlatformRegistry,
+        access_control: &mut SplitPaymentAccessTable,
         title: String,
         total_amount: u64,
         participants: vector<String>,
@@ -460,6 +482,42 @@ module suiconn::suiconn {
             completed_at: option::none(),
             is_completed: false,
             payment_deadline: option::none(),
+        };
+
+        // Add access control for creator
+        let creator_access = SplitPaymentAccess {
+            split_id,
+            user_address: sender,
+            is_creator: true,
+            is_participant: false,
+        };
+
+        if (!table::contains(&access_control.access_control, sender)) {
+            table::add(&mut access_control.access_control, sender, vector::empty());
+        };
+        let creator_access_list = table::borrow_mut(&mut access_control.access_control, sender);
+        vector::push_back(creator_access_list, creator_access);
+
+        // Add access control for participants
+        i = 0;
+        while (i < vector::length(&participants)) {
+            let username = vector::borrow(&participants, i);
+            let participant_address = *table::borrow(&registry.username_registry, *username);
+            
+            let participant_access = SplitPaymentAccess {
+                split_id,
+                user_address: participant_address,
+                is_creator: false,
+                is_participant: true,
+            };
+
+            if (!table::contains(&access_control.access_control, participant_address)) {
+                table::add(&mut access_control.access_control, participant_address, vector::empty());
+            };
+            let participant_access_list = table::borrow_mut(&mut access_control.access_control, participant_address);
+            vector::push_back(participant_access_list, participant_access);
+            
+            i = i + 1;
         };
 
         table::add(&mut registry.split_payments, split_id, split_payment);
@@ -951,12 +1009,29 @@ module suiconn::suiconn {
         }
     }
 
-    public fun get_split_payment(registry: &PlatformRegistry, split_id: ID): Option<SplitPayment> {
-        if (table::contains(&registry.split_payments, split_id)) {
-            option::some(*table::borrow(&registry.split_payments, split_id))
-        } else {
-            option::none()
-        }
+    public fun get_split_payment(
+        registry: &PlatformRegistry,
+        access_control: &SplitPaymentAccessTable,
+        split_id: ID,
+        user_address: address
+    ): Option<SplitPayment> {
+        if (!table::contains(&access_control.access_control, user_address)) {
+            return option::none()
+        };
+
+        let access_list = table::borrow(&access_control.access_control, user_address);
+        let mut i = 0;
+        while (i < vector::length(access_list)) {
+            let access = vector::borrow(access_list, i);
+            if (access.split_id == split_id) {
+                if (table::contains(&registry.split_payments, split_id)) {
+                    return option::some(*table::borrow(&registry.split_payments, split_id))
+                };
+                break
+            };
+            i = i + 1;
+        };
+        option::none()
     }
 
     public fun get_platform_stats(registry: &PlatformRegistry): u64 {
@@ -988,5 +1063,28 @@ module suiconn::suiconn {
         } else {
             option::none()
         }
+    }
+
+    // Add new view function for user's split payments
+    public fun get_user_split_payments(
+        registry: &PlatformRegistry,
+        access_control: &SplitPaymentAccessTable,
+        user_address: address
+    ): vector<SplitPayment> {
+        if (!table::contains(&access_control.access_control, user_address)) {
+            return vector::empty()
+        };
+
+        let access_list = table::borrow(&access_control.access_control, user_address);
+        let mut user_splits = vector::empty();
+        let mut i = 0;
+        while (i < vector::length(access_list)) {
+            let access = vector::borrow(access_list, i);
+            if (table::contains(&registry.split_payments, access.split_id)) {
+                vector::push_back(&mut user_splits, *table::borrow(&registry.split_payments, access.split_id));
+            };
+            i = i + 1;
+        };
+        user_splits
     }
 }
