@@ -19,13 +19,14 @@ import { Card, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { X } from 'lucide-react';
 
-const PACKAGE_ID = '0xb0d759fa0e301c27bee0b451b80cb9479171fe9674251eaf1d96b8a1d9693a6b';
-const REGISTRY_OBJECT_ID = '0x4432099e7bdf4b607f09a28f3e7f0feaa9ee396dba779baf12b5814e23cfda11';
-const USER_PROFILES_TABLE_ID = '0x6d4114ff53d3fb8352d0a40638aaccbf58b3833b06f981ceb8a544ed9dfa56f3';
-const FRIEND_REQUESTS_TABLE_ID = '0xcfe84647c1b2c4a23dad88e77846552b995c417c7b0b5d8ef36fb7f112ad8610';
-const SPLIT_PAYMENTS_TABLE_ID = '0x2e43a39d74678a277ec75e5557c0290b585c8cad25677f4e239b1c61c30ecc4d';
-const PAYMENT_HISTORY_TABLE_ID = '0x4eb7d1fa28011028dfa5337d708dee756a6a0d84b7408e552806f0fa778e1499';
-const USERNAME_REGISTRY_TABLE_ID = '0xcf30d3fdd6fb90502f3e4e06f10505485c1459d3f69ca2eeab8703fa4efd7d80';
+const PACKAGE_ID = '0xf074c8d5cedb36be30ada8ba0e91cccae52d122ba6240fcdccf6a00d4c0fd5f1';
+const REGISTRY_OBJECT_ID = '0xb202bc1e96a0eb15b049201e0537266efcd7939e66fd4e41d9d24c2b87fda880';
+const USER_PROFILES_TABLE_ID = '0xc6d567ad36c3d43339247a7ffed5fe2ae4937dcef3ccda1fd3bc3d4f6707a0ec';
+const FRIEND_REQUESTS_TABLE_ID = '0xd3cea6552b931d873e6c3f8665319ddec6d079977474e4090fdc547ea37102a8';
+const SPLIT_PAYMENTS_TABLE_ID = '0x278f2d0b7b6e1ef4c956de5f05403e4d149fa6fd12a529d85472811e31490344';
+const PAYMENT_HISTORY_TABLE_ID = '0x644db14e9aa95ad37af52794db7e260b561787fd08f095a22b16741aabee0423';
+const USERNAME_REGISTRY_TABLE_ID = '0xa57a8e13c1b8d4ffedf49fccd93b582faeb7dc6ae439fa8ed20ba0f6da74121c';
+const BATCH_PAYMENTS_TABLE_ID = '0x5785bbf2288b328b79d1bcc8bee73719286913ed25f289e520c465cf5687d921';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
 // Underwater overlay component
@@ -236,41 +237,126 @@ export default function SuiConnApp() {
     }
   };
 
-  // Fetch split payments
+  // Fetch split payments where the current user is a participant
   const fetchSplitPayments = async () => {
+    if (!account?.address) {
+      console.log('Account address not available, clearing split payments.');
+      setSplitPayments([]);
+      return;
+    }
+
     try {
-      const { data } = await suiClient.getObject({
+      const { data: registryData } = await suiClient.getObject({
         id: REGISTRY_OBJECT_ID,
         options: { showContent: true }
       });
 
-      if (data?.content?.dataType === 'moveObject') {
-        const fields = data.content.fields as any;
-        const splitPayments = Array.isArray(fields.split_payments) ? fields.split_payments : [];
-        const formattedPayments: SplitPayment[] = await Promise.all(
-          splitPayments.map(async (payment: any) => {
-            const creatorUsername = await getUsernameFromAddress(payment.creator);
-            return {
-              id: payment.id,
-              creator: payment.creator,
-              title: payment.title,
-              total_amount: Number(payment.total_amount),
-              participants: payment.participants,
-              created_at: Number(payment.created_at),
-              completed_at: payment.completed_at ? Number(payment.completed_at) : null,
-              is_completed: payment.is_completed,
-              payment_deadline: payment.payment_deadline ? Number(payment.payment_deadline) : null,
-              collected_amount: Number(payment.collected_amount),
-              recipient_address: payment.recipient_address,
-              creatorUsername,
-              status: payment.is_completed ? 'completed' : 'pending'
-            };
-          })
-        );
-        setSplitPayments(formattedPayments);
+      if (registryData?.content?.dataType !== 'moveObject') {
+        console.error('Failed to fetch registry object or invalid type');
+        setSplitPayments([]);
+        return;
       }
+
+      const registryFields = registryData.content.fields as any;
+      const splitPaymentsDynamicField = registryFields.split_payments;
+
+      if (!splitPaymentsDynamicField) {
+        console.log('No split payments dynamic field found in registry.');
+        setSplitPayments([]);
+        return; // No split payments dynamic field found
+      }
+
+      const splitPaymentsTableId = splitPaymentsDynamicField.fields.id;
+
+      // Fetch all dynamic field entries from the split payments table
+      const { data: splitPaymentEntries } = await suiClient.getDynamicFields({
+          parentId: splitPaymentsTableId,
+      });
+      
+      if (!splitPaymentEntries || splitPaymentEntries.length === 0) {
+        console.log('No dynamic field entries found in split payments table.');
+        setSplitPayments([]);
+        return;
+      }
+
+      // Fetch the content of each SplitPayment object and filter by participant
+      const userSplitPayments: SplitPayment[] = [];
+
+      console.log(`Found ${splitPaymentEntries.length} dynamic field entries in split payments table. Fetching objects...`);
+
+      for (const entry of splitPaymentEntries) {
+        try {
+            const splitPaymentObjectId = entry.objectId;
+            
+            const { data: splitObjectData } = await suiClient.getObject({
+                id: splitPaymentObjectId, 
+                options: { showContent: true }
+            });
+
+            if (splitObjectData?.content?.dataType === 'moveObject') {
+                const paymentFields = splitObjectData.content.fields as any; // Get the fields of the SplitPayment object
+
+                // Log the fetched split payment object fields for inspection
+                console.log(`Fetched split payment object ${splitPaymentObjectId}:`, paymentFields);
+
+                // Check if the current user is a participant in this split payment
+                // Ensure participants is an array and check for the account address within the nested fields.
+                // Using a more explicit check here.
+                const isParticipant = Array.isArray(paymentFields.participants) &&
+                    paymentFields.participants.some((participantEntry: any) => {
+                        // Check if participantEntry and its fields exist before accessing address
+                        return participantEntry && participantEntry.fields && participantEntry.fields.address === account.address;
+                    });
+
+                if (isParticipant) {
+                     console.log(`Current user ${account.address} is a participant in ${splitPaymentObjectId}. Adding to list.`);
+                     // Map participant addresses to usernames for display
+                    const participantsWithUsernames = await Promise.all(
+                        paymentFields.participants.map(async (participantEntry: any) => ({
+                            address: participantEntry.fields?.address,
+                            amount_owed: Number(participantEntry.fields?.amount_owed),
+                            amount_paid: Number(participantEntry.fields?.amount_paid),
+                            has_paid: participantEntry.fields?.has_paid,
+                            paid_at: participantEntry.fields?.paid_at ? Number(participantEntry.fields.paid_at) : null,
+                            username: await getUsernameFromAddress(participantEntry.fields?.address) // Get username for participant
+                        }))
+                    );
+
+                    userSplitPayments.push({
+                        id: paymentFields.id,
+                        creator: paymentFields.creator,
+                        title: paymentFields.title,
+                        total_amount: Number(paymentFields.total_amount),
+                        participants: participantsWithUsernames, // Use participants with usernames
+                        created_at: Number(paymentFields.created_at),
+                        completed_at: paymentFields.completed_at ? Number(paymentFields.completed_at) : null,
+                        is_completed: paymentFields.is_completed,
+                        payment_deadline: paymentFields.payment_deadline ? Number(paymentFields.payment_deadline) : null,
+                        collected_amount: Number(paymentFields.collected_amount),
+                        recipient_address: paymentFields.recipient_address,
+                        creatorUsername: await getUsernameFromAddress(paymentFields.creator),
+                        status: paymentFields.is_completed ? 'completed' : 'pending'
+                    });
+                }
+            } else {
+                 console.warn(`Fetched object ${splitPaymentObjectId} is not a Move object or has no content. Skipping.`);
+            }
+        } catch (objErr) {
+            console.error(`Failed to fetch or process split payment object ${entry.objectId}:`, objErr);
+            // Continue to the next entry even if one object fetch fails
+        }
+      }
+      
+      console.log(`Finished fetching split payments. Found ${userSplitPayments.length} relevant splits.`);
+
+      // Sort by creation date
+      userSplitPayments.sort((a, b) => b.created_at - a.created_at);
+
+      setSplitPayments(userSplitPayments);
+
     } catch (err) {
       console.error('Error fetching split payments:', err);
+      setSplitPayments([]);
     }
   };
 
@@ -1113,6 +1199,14 @@ export default function SuiConnApp() {
                 >
                   Select from Friends
                 </button>
+                <button 
+                  onClick={() => account?.address && setSplitRecipient(account.address)}
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-purple-600 to-indigo-700 text-white hover:from-purple-500 hover:to-indigo-600 shadow-lg shadow-purple-500/30 border-purple-500 flex-shrink-0"
+                  style={{ width: 'auto' }}
+                  disabled={!account?.address}
+                >
+                  Select Self
+                </button>
               </div>
 
               {splitType === 'equal' ? (
@@ -1189,7 +1283,7 @@ export default function SuiConnApp() {
                           <strong>Creator:</strong> {split.creatorUsername} {isCreator && '(You)'}
                         </div>
                         <div className="text-sm text-gray-300">
-                          <strong>Status:</strong> {split.is_completed ? 'Completed' : 'Pending'}
+                          <strong>Status:</strong> {split.status === 'completed' ? 'Completed' : 'Pending'}
                         </div>
                         <div className="text-sm text-gray-300">
                           <strong>Created:</strong> {new Date(split.created_at).toLocaleString()}
@@ -1234,7 +1328,7 @@ export default function SuiConnApp() {
                         </div>
                         
                         {/* Action buttons */}
-                        {userParticipant && !userParticipant.has_paid && !split.is_completed && (
+                        {userParticipant && !userParticipant.has_paid && !split.is_completed && ( // Only show pay button if user hasn't paid and split is not completed
                           <button 
                             onClick={() => handlePaySplitAmount(split.id, userParticipant.amount_owed)}
                             className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 mt-4">
@@ -1258,7 +1352,7 @@ export default function SuiConnApp() {
                   );
                 })
               ) : (
-                <div className="text-sm text-gray-300">No split payments found</div>
+                <div className="text-sm text-gray-300">No split payments found where you are a participant.</div>
               )}
             </Card>
           </div>

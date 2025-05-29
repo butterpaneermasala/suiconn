@@ -6,9 +6,8 @@ module suiconn::suiconn {
     use sui::sui::SUI;
     use std::string::{Self, String};
     use sui::table::{Self, Table};
-    use sui::bag::{Self, Bag};
     use sui::event;
-    use sui::balance;
+    use sui::balance::{Self, Balance};
     use std::vector;
     use std::option::{Self, Option};
     use sui::clock::{Self, Clock};
@@ -30,32 +29,22 @@ module suiconn::suiconn {
     const EREQUEST_ALREADY_EXISTS: u64 = 13;
     const EREQUEST_NOT_FOUND: u64 = 14;
     const EINVALID_REQUEST_STATUS: u64 = 15;
-    const EGROUP_NOT_FOUND: u64 = 16;
-    const ENOT_GROUP_ADMIN: u64 = 17;
-    const EMEMBER_NOT_FOUND: u64 = 18;
-    const EMAX_GROUP_MEMBERS_EXCEEDED: u64 = 19;
     const ESPLIT_PAYMENT_NOT_FOUND: u64 = 20;
     const EALREADY_PAID: u64 = 21;
     const EINVALID_SPLIT_AMOUNT: u64 = 22;
-    const EGROUP_NAME_TOO_LONG: u64 = 24;
     const ENOT_FRIENDS: u64 = 25;
     const ESELF_FRIEND_REQUEST: u64 = 26;
-    const EGROUP_ALREADY_EXISTS: u64 = 27;
-    const EINACTIVE_USER: u64 = 28;
     const EZERO_PARTICIPANTS: u64 = 29;
     const EOVERPAYMENT: u64 = 30;
     const ETOO_FREQUENT_PAYMENTS: u64 = 31;
     const EDAILY_LIMIT_EXCEEDED: u64 = 32;
     const EINVALID_USERNAME_CHARS: u64 = 33;
-    const EPLATFORM_PAUSED: u64 = 34;
 
     // Constants
     const MAX_FRIENDS: u64 = 500;
     const MAX_USERNAME_LENGTH: u64 = 30;
     const MAX_MEMO_LENGTH: u64 = 200;
     const MAX_BATCH_SIZE: u64 = 50;
-    const MAX_GROUP_MEMBERS: u64 = 100;
-    const MAX_GROUP_NAME_LENGTH: u64 = 50;
     const MAX_DAILY_PAYMENTS: u64 = 100;
     const MIN_PAYMENT_INTERVAL: u64 = 1000; // 1 second
     const DAY_IN_MS: u64 = 86400000; // 24 hours
@@ -65,47 +54,34 @@ module suiconn::suiconn {
     const REQUEST_ACCEPTED: u8 = 1;
     const REQUEST_REJECTED: u8 = 2;
 
-    // Group Member Role
-    const ROLE_MEMBER: u8 = 0;
-    const ROLE_ADMIN: u8 = 1;
-
     // Payment Types
     const PAYMENT_DIRECT: u8 = 0;
     const PAYMENT_SPLIT: u8 = 1;
-    const PAYMENT_GROUP: u8 = 2;
 
     // Payment Status
     const PAYMENT_PENDING: u8 = 0;
     const PAYMENT_COMPLETED: u8 = 1;
     const PAYMENT_FAILED: u8 = 2;
 
-    // Admin capability for emergency situations
-    public struct AdminCap has key, store {
-        id: UID,
-    }
-
-    // Main Platform Registry (shared object)
+    // Main Platform Registry (shared object) - fully decentralized
     public struct PlatformRegistry has key {
         id: UID,
         user_profiles: Table<address, UserProfile>,
         username_registry: Table<String, address>,
         friend_requests: Table<address, vector<FriendRequest>>,
-        groups: Table<ID, Group>,
         split_payments: Table<ID, SplitPayment>,
+        batch_payments: Table<ID, BatchPayment>,
         payment_history: Table<address, vector<PaymentRecord>>,
         total_users: u64,
-        total_groups: u64,
-        is_paused: bool,
+        platform_balance: Balance<SUI>,
     }
 
-    // Enhanced User Profile with rate limiting
+    // User Profile
     public struct UserProfile has store, copy, drop {
         username: String,
         address: address,
         friends: vector<address>,
-        groups: vector<ID>,
         created_at: u64,
-        is_active: bool,
         last_payment_time: u64,
         daily_payment_count: u64,
         last_friend_request_time: u64,
@@ -123,32 +99,10 @@ module suiconn::suiconn {
         updated_at: u64,
     }
 
-    // Enhanced Group with better management
-    public struct Group has store, copy, drop {
-        id: ID,
-        name: String,
-        description: Option<String>,
-        admin: address,
-        members: vector<GroupMember>,
-        created_at: u64,
-        total_spent: u64,
-        is_active: bool,
-        member_count: u64,
-    }
-
-    // Group Member
-    public struct GroupMember has store, copy, drop {
-        address: address,
-        role: u8,
-        joined_at: u64,
-        total_contributed: u64,
-    }
-
-    // Enhanced Split Payment
+    // Split Payment
     public struct SplitPayment has store, copy, drop {
         id: ID,
         creator: address,
-        group_id: Option<ID>,
         title: String,
         total_amount: u64,
         participants: vector<SplitParticipant>,
@@ -156,6 +110,8 @@ module suiconn::suiconn {
         completed_at: Option<u64>,
         is_completed: bool,
         payment_deadline: Option<u64>,
+        collected_amount: u64,
+        recipient_address: address,
     }
 
     // Split Participant
@@ -167,7 +123,7 @@ module suiconn::suiconn {
         paid_at: Option<u64>,
     }
 
-    // Enhanced Payment Record
+    // Payment Record
     public struct PaymentRecord has store, copy, drop {
         id: ID,
         from: address,
@@ -178,6 +134,28 @@ module suiconn::suiconn {
         related_id: Option<ID>,
         timestamp: u64,
         status: u8,
+    }
+
+    // Batch Payment
+    public struct BatchPayment has store, copy, drop {
+        id: ID,
+        creator: address,
+        payments: vector<BatchPaymentItem>,
+        created_at: u64,
+        completed_at: Option<u64>,
+        is_completed: bool,
+    }
+
+    public struct BatchPaymentItem has store, copy, drop {
+        to_username: String,
+        amount: u64,
+        memo: String,
+        status: u8,
+        completed_at: Option<u64>,
+    }
+
+    public struct BatchPaymentRequest has store, copy, drop {
+        payments: vector<BatchPaymentItem>
     }
 
     // Events
@@ -202,25 +180,12 @@ module suiconn::suiconn {
         timestamp: u64,
     }
 
-    public struct GroupCreated has copy, drop {
-        group_id: ID,
-        name: String,
-        admin: address,
-        timestamp: u64,
-    }
-
-    public struct MemberAddedToGroup has copy, drop {
-        group_id: ID,
-        member: address,
-        added_by: address,
-        timestamp: u64,
-    }
-
     public struct SplitPaymentCreated has copy, drop {
         split_id: ID,
         creator: address,
         total_amount: u64,
         participants_count: u64,
+        recipient_address: address,
         timestamp: u64,
     }
 
@@ -240,37 +205,43 @@ module suiconn::suiconn {
         timestamp: u64,
     }
 
-    public struct PlatformPaused has copy, drop {
-        timestamp: u64,
-        admin: address,
+    public struct SplitPaymentCompleted has copy, drop {
+        split_id: ID,
+        recipient_address: address,
+        total_amount: u64,
+        completed_at: u64,
     }
 
-    public struct UserDeactivated has copy, drop {
-        user_address: address,
-        admin: address,
+    public struct BatchPaymentCreated has copy, drop {
+        batch_id: ID,
+        creator: address,
+        total_payments: u64,
+        total_amount: u64,
         timestamp: u64,
     }
 
-    // Initialize the platform
+    public struct BatchPaymentCompleted has copy, drop {
+        batch_id: ID,
+        creator: address,
+        total_payments: u64,
+        total_amount: u64,
+        completed_at: u64,
+    }
+
+    // Initialize the platform - completely decentralized
     fun init(ctx: &mut TxContext) {
-        let admin_cap = AdminCap {
-            id: object::new(ctx),
-        };
-        
         let registry = PlatformRegistry {
             id: object::new(ctx),
             user_profiles: table::new(ctx),
             username_registry: table::new(ctx),
             friend_requests: table::new(ctx),
-            groups: table::new(ctx),
             split_payments: table::new(ctx),
+            batch_payments: table::new(ctx),
             payment_history: table::new(ctx),
             total_users: 0,
-            total_groups: 0,
-            is_paused: false,
+            platform_balance: balance::zero(),
         };
         
-        transfer::transfer(admin_cap, tx_context::sender(ctx));
         transfer::share_object(registry);
     }
 
@@ -291,14 +262,13 @@ module suiconn::suiconn {
         true
     }
 
-    // Enhanced User Registration with validation
+    // User Registration
     public entry fun register_user(
         registry: &mut PlatformRegistry,
         username: String,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(!table::contains(&registry.user_profiles, sender), EALREADY_EXISTS);
         assert!(string::length(&username) > 0, ENAME_TOO_LONG);
@@ -311,9 +281,7 @@ module suiconn::suiconn {
             username: copy username,
             address: sender,
             friends: vector::empty(),
-            groups: vector::empty(),
             created_at: timestamp,
-            is_active: true,
             last_payment_time: 0,
             daily_payment_count: 0,
             last_friend_request_time: 0,
@@ -334,14 +302,13 @@ module suiconn::suiconn {
         });
     }
 
-    // Enhanced Friend Request System with rate limiting
+    // Friend Request System
     public entry fun send_friend_request(
         registry: &mut PlatformRegistry,
         to_username: String,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
         assert!(table::contains(&registry.username_registry, to_username), EUSER_NOT_FOUND);
@@ -350,12 +317,10 @@ module suiconn::suiconn {
         assert!(sender != to_address, ESELF_FRIEND_REQUEST);
 
         let sender_profile = table::borrow_mut(&mut registry.user_profiles, sender);
-        assert!(sender_profile.is_active, EINACTIVE_USER);
         assert!(!vector::contains(&sender_profile.friends, &to_address), EFRIEND_ALREADY_ADDED);
         assert!(vector::length(&sender_profile.friends) < MAX_FRIENDS, EMAX_FRIENDS_EXCEEDED);
 
         let current_time = clock::timestamp_ms(clock);
-        // Rate limiting: prevent spam friend requests
         assert!(current_time - sender_profile.last_friend_request_time >= MIN_PAYMENT_INTERVAL, ETOO_FREQUENT_PAYMENTS);
         sender_profile.last_friend_request_time = current_time;
 
@@ -397,7 +362,6 @@ module suiconn::suiconn {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.friend_requests, sender), EREQUEST_NOT_FOUND);
 
@@ -442,173 +406,16 @@ module suiconn::suiconn {
         });
     }
 
-    // Enhanced Group Management
-    public entry fun create_group(
-        registry: &mut PlatformRegistry,
-        name: String,
-        description: Option<String>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
-        let sender = tx_context::sender(ctx);
-        assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
-        assert!(string::length(&name) > 0, EGROUP_NAME_TOO_LONG);
-        assert!(string::length(&name) <= MAX_GROUP_NAME_LENGTH, EGROUP_NAME_TOO_LONG);
-
-        let sender_profile = table::borrow(&registry.user_profiles, sender);
-        assert!(sender_profile.is_active, EINACTIVE_USER);
-
-        let timestamp = clock::timestamp_ms(clock);
-        let group_uid = object::new(ctx);
-        let group_id = object::uid_to_inner(&group_uid);
-
-        let admin_member = GroupMember {
-            address: sender,
-            role: ROLE_ADMIN,
-            joined_at: timestamp,
-            total_contributed: 0,
-        };
-
-        let mut members = vector::empty();
-        vector::push_back(&mut members, admin_member);
-
-        let group = Group {
-            id: group_id,
-            name: copy name,
-            description,
-            admin: sender,
-            members,
-            created_at: timestamp,
-            total_spent: 0,
-            is_active: true,
-            member_count: 1,
-        };
-
-        table::add(&mut registry.groups, group_id, group);
-        object::delete(group_uid);
-
-        let user_profile = table::borrow_mut(&mut registry.user_profiles, sender);
-        vector::push_back(&mut user_profile.groups, group_id);
-
-        registry.total_groups = registry.total_groups + 1;
-
-        event::emit(GroupCreated {
-            group_id,
-            name,
-            admin: sender,
-            timestamp,
-        });
-    }
-
-    public entry fun add_member_to_group(
-        registry: &mut PlatformRegistry,
-        group_id: ID,
-        member_username: String,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
-        let sender = tx_context::sender(ctx);
-        assert!(table::contains(&registry.groups, group_id), EGROUP_NOT_FOUND);
-        assert!(table::contains(&registry.username_registry, member_username), EUSER_NOT_FOUND);
-
-        let member_address = *table::borrow(&registry.username_registry, member_username);
-        let group = table::borrow_mut(&mut registry.groups, group_id);
-        assert!(group.admin == sender, ENOT_GROUP_ADMIN);
-        assert!(group.is_active, EINACTIVE_USER);
-        assert!(group.member_count < MAX_GROUP_MEMBERS, EMAX_GROUP_MEMBERS_EXCEEDED);
-
-        // Check if member already exists
-        let mut i = 0;
-        while (i < vector::length(&group.members)) {
-            let member = vector::borrow(&group.members, i);
-            assert!(member.address != member_address, EFRIEND_ALREADY_ADDED);
-            i = i + 1;
-        };
-
-        let timestamp = clock::timestamp_ms(clock);
-        let new_member = GroupMember {
-            address: member_address,
-            role: ROLE_MEMBER,
-            joined_at: timestamp,
-            total_contributed: 0,
-        };
-
-        vector::push_back(&mut group.members, new_member);
-        group.member_count = group.member_count + 1;
-
-        let user_profile = table::borrow_mut(&mut registry.user_profiles, member_address);
-        vector::push_back(&mut user_profile.groups, group_id);
-
-        event::emit(MemberAddedToGroup {
-            group_id,
-            member: member_address,
-            added_by: sender,
-            timestamp,
-        });
-    }
-
-    // Transfer group admin
-    public entry fun transfer_group_admin(
-        registry: &mut PlatformRegistry,
-        group_id: ID,
-        new_admin_username: String,
-        ctx: &mut TxContext
-    ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
-        let sender = tx_context::sender(ctx);
-        assert!(table::contains(&registry.groups, group_id), EGROUP_NOT_FOUND);
-        assert!(table::contains(&registry.username_registry, new_admin_username), EUSER_NOT_FOUND);
-        
-        let group = table::borrow_mut(&mut registry.groups, group_id);
-        assert!(group.admin == sender, ENOT_GROUP_ADMIN);
-        
-        let new_admin_address = *table::borrow(&registry.username_registry, new_admin_username);
-        
-        // Verify new admin is a group member
-        let mut is_member = false;
-        let mut member_index = 0;
-        let mut i = 0;
-        while (i < vector::length(&group.members)) {
-            let member = vector::borrow(&group.members, i);
-            if (member.address == new_admin_address) {
-                is_member = true;
-                member_index = i;
-                break
-            };
-            i = i + 1;
-        };
-        assert!(is_member, EMEMBER_NOT_FOUND);
-        
-        // Update roles
-        group.admin = new_admin_address;
-        let new_admin_member = vector::borrow_mut(&mut group.members, member_index);
-        new_admin_member.role = ROLE_ADMIN;
-        
-        // Demote old admin to member
-        i = 0;
-        while (i < vector::length(&group.members)) {
-            let member = vector::borrow_mut(&mut group.members, i);
-            if (member.address == sender) {
-                member.role = ROLE_MEMBER;
-                break
-            };
-            i = i + 1;
-        };
-    }
-
-    // Enhanced Split Payment System
+    // Split Payment System
     public entry fun create_split_payment(
         registry: &mut PlatformRegistry,
         title: String,
         total_amount: u64,
         participants: vector<String>,
-        group_id: Option<ID>,
+        recipient_address: address,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
         assert!(total_amount > 0, EINVALID_AMOUNT);
@@ -644,10 +451,11 @@ module suiconn::suiconn {
         let split_payment = SplitPayment {
             id: split_id,
             creator: sender,
-            group_id,
             title: copy title,
             total_amount,
             participants: split_participants,
+            recipient_address,
+            collected_amount: 0,
             created_at: timestamp,
             completed_at: option::none(),
             is_completed: false,
@@ -662,6 +470,7 @@ module suiconn::suiconn {
             creator: sender,
             total_amount,
             participants_count: vector::length(&participants),
+            recipient_address,
             timestamp,
         });
     }
@@ -672,15 +481,15 @@ module suiconn::suiconn {
         title: String,
         participants: vector<String>,
         amounts: vector<u64>,
-        group_id: Option<ID>,
+        recipient_address: address,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
         assert!(vector::length(&participants) == vector::length(&amounts), EVECTOR_LENGTH_MISMATCH);
         assert!(vector::length(&participants) > 0, EZERO_PARTICIPANTS);
+        assert!(vector::length(&participants) <= MAX_BATCH_SIZE, EMAX_BATCH_SIZE_EXCEEDED);
         
         let mut total_amount = 0;
         let mut i = 0;
@@ -718,10 +527,11 @@ module suiconn::suiconn {
         let split_payment = SplitPayment {
             id: split_id,
             creator: sender,
-            group_id,
             title: copy title,
             total_amount,
             participants: split_participants,
+            recipient_address,
+            collected_amount: 0,
             created_at: timestamp,
             completed_at: option::none(),
             is_completed: false,
@@ -736,6 +546,7 @@ module suiconn::suiconn {
             creator: sender,
             total_amount,
             participants_count: vector::length(&participants),
+            recipient_address,
             timestamp,
         });
     }
@@ -747,7 +558,6 @@ module suiconn::suiconn {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.split_payments, split_id), ESPLIT_PAYMENT_NOT_FOUND);
 
@@ -765,7 +575,7 @@ module suiconn::suiconn {
             i = i + 1;
         };
 
-        assert!(option::is_some(&participant_index), EMEMBER_NOT_FOUND);
+        assert!(option::is_some(&participant_index), EUSER_NOT_FOUND);
         let index = option::extract(&mut participant_index);
         let participant = vector::borrow_mut(&mut split_payment.participants, index);
 
@@ -775,13 +585,17 @@ module suiconn::suiconn {
         let mut payment_coin = payment;
         let split_coin = coin::split(&mut payment_coin, amount_to_pay, ctx);
 
-        transfer::public_transfer(split_coin, split_payment.creator);
+        let payment_balance = coin::into_balance(split_coin);
+        balance::join(&mut registry.platform_balance, payment_balance);
+        
         transfer::public_transfer(payment_coin, sender);
 
         let timestamp = clock::timestamp_ms(clock);
         participant.amount_paid = amount_to_pay;
         participant.has_paid = true;
         participant.paid_at = option::some(timestamp);
+        
+        split_payment.collected_amount = split_payment.collected_amount + amount_to_pay;
 
         // Check if all participants have paid
         let mut all_paid = true;
@@ -798,6 +612,19 @@ module suiconn::suiconn {
         if (all_paid) {
             split_payment.is_completed = true;
             split_payment.completed_at = option::some(timestamp);
+            
+            let transfer_amount = split_payment.collected_amount;
+            let transfer_balance = balance::split(&mut registry.platform_balance, transfer_amount);
+            let transfer_coin = coin::from_balance(transfer_balance, ctx);
+            
+            transfer::public_transfer(transfer_coin, split_payment.recipient_address);
+            
+            event::emit(SplitPaymentCompleted {
+                split_id,
+                recipient_address: split_payment.recipient_address,
+                total_amount: transfer_amount,
+                completed_at: timestamp,
+            });
         };
 
         // Record payment history
@@ -806,7 +633,7 @@ module suiconn::suiconn {
         let payment_record = PaymentRecord {
             id: payment_id,
             from: sender,
-            to: split_payment.creator,
+            to: split_payment.recipient_address,
             amount: amount_to_pay,
             memo: string::utf8(b"Split payment contribution"),
             payment_type: PAYMENT_SPLIT,
@@ -827,7 +654,7 @@ module suiconn::suiconn {
         });
     }
 
-    // Enhanced Direct Payment with friend verification and rate limiting
+    // Direct Payment
     public entry fun send_payment(
         registry: &mut PlatformRegistry,
         to_username: String,
@@ -837,7 +664,6 @@ module suiconn::suiconn {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(!registry.is_paused, EPLATFORM_PAUSED);
         let sender = tx_context::sender(ctx);
         assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
         assert!(table::contains(&registry.username_registry, to_username), EUSER_NOT_FOUND);
@@ -848,25 +674,21 @@ module suiconn::suiconn {
         let to_address = *table::borrow(&registry.username_registry, to_username);
         let current_time = clock::timestamp_ms(clock);
 
-        // Friend verification
         let sender_profile = table::borrow_mut(&mut registry.user_profiles, sender);
-        assert!(sender_profile.is_active, EINACTIVE_USER);
         assert!(vector::contains(&sender_profile.friends, &to_address), ENOT_FRIENDS);
 
-        // Rate limiting
         assert!(
             current_time - sender_profile.last_payment_time >= MIN_PAYMENT_INTERVAL,
             ETOO_FREQUENT_PAYMENTS
         );
 
-        // Daily limit check
         if (current_time - sender_profile.last_payment_time > DAY_IN_MS) {
             sender_profile.daily_payment_count = 0;
         };
         assert!(sender_profile.daily_payment_count < MAX_DAILY_PAYMENTS, EDAILY_LIMIT_EXCEEDED);
+        sender_profile.daily_payment_count = sender_profile.daily_payment_count + 1;
 
         sender_profile.last_payment_time = current_time;
-        sender_profile.daily_payment_count = sender_profile.daily_payment_count + 1;
         sender_profile.total_payments_sent = sender_profile.total_payments_sent + 1;
 
         // Update recipient stats
@@ -911,50 +733,164 @@ module suiconn::suiconn {
         });
     }
 
-    // Admin functions
-    public entry fun pause_platform(
-        _: &AdminCap,
+    // Batch Payment System
+    public entry fun create_batch_payment(
         registry: &mut PlatformRegistry,
+        to_usernames: vector<String>,
+        amounts: vector<u64>,
+        memos: vector<String>,
+        payment: Coin<SUI>,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        registry.is_paused = true;
-        let timestamp = clock::timestamp_ms(clock);
+        let sender = tx_context::sender(ctx);
+        assert!(table::contains(&registry.user_profiles, sender), EUSER_NOT_FOUND);
+        assert!(vector::length(&to_usernames) > 0, EEMPTY_BATCH);
+        assert!(vector::length(&to_usernames) <= MAX_BATCH_SIZE, EMAX_BATCH_SIZE_EXCEEDED);
+        assert!(vector::length(&to_usernames) == vector::length(&amounts), EVECTOR_LENGTH_MISMATCH);
+        assert!(vector::length(&to_usernames) == vector::length(&memos), EVECTOR_LENGTH_MISMATCH);
+
+        let current_time = clock::timestamp_ms(clock);
+        let sender_profile = table::borrow_mut(&mut registry.user_profiles, sender);
+
+        // Calculate total amount and validate all payments
+        let mut total_amount = 0;
+        let mut i = 0;
+        while (i < vector::length(&to_usernames)) {
+            let username = vector::borrow(&to_usernames, i);
+            let amount = *vector::borrow(&amounts, i);
+            let memo = vector::borrow(&memos, i);
+            
+            assert!(amount > 0, EINVALID_AMOUNT);
+            assert!(string::length(memo) <= MAX_MEMO_LENGTH, ENAME_TOO_LONG);
+            assert!(table::contains(&registry.username_registry, *username), EUSER_NOT_FOUND);
+            
+            let to_address = *table::borrow(&registry.username_registry, *username);
+            assert!(vector::contains(&sender_profile.friends, &to_address), ENOT_FRIENDS);
+            
+            total_amount = total_amount + amount;
+            i = i + 1;
+        };
+
+        assert!(coin::value(&payment) >= total_amount, EINSUFFICIENT_BALANCE);
+
+        // Check rate limiting
+        assert!(
+            current_time - sender_profile.last_payment_time >= MIN_PAYMENT_INTERVAL,
+            ETOO_FREQUENT_PAYMENTS
+        );
+
+        if (current_time - sender_profile.last_payment_time > DAY_IN_MS) {
+            sender_profile.daily_payment_count = 0;
+        };
+        assert!(sender_profile.daily_payment_count + vector::length(&to_usernames) <= MAX_DAILY_PAYMENTS, EDAILY_LIMIT_EXCEEDED);
+        sender_profile.daily_payment_count = sender_profile.daily_payment_count + vector::length(&to_usernames);
+        sender_profile.last_payment_time = current_time;
+        sender_profile.total_payments_sent = sender_profile.total_payments_sent + vector::length(&to_usernames);
+
+        // Create batch payment record
+        let batch_uid = object::new(ctx);
+        let batch_id = object::uid_to_inner(&batch_uid);
         
-        event::emit(PlatformPaused {
-            timestamp,
-            admin: tx_context::sender(ctx),
+        let mut batch_items = vector::empty();
+        i = 0;
+        while (i < vector::length(&to_usernames)) {
+            let item = BatchPaymentItem {
+                to_username: *vector::borrow(&to_usernames, i),
+                amount: *vector::borrow(&amounts, i),
+                memo: *vector::borrow(&memos, i),
+                status: PAYMENT_COMPLETED,
+                completed_at: option::some(current_time),
+            };
+            vector::push_back(&mut batch_items, item);
+            i = i + 1;
+        };
+
+        let batch_payment = BatchPayment {
+            id: batch_id,
+            creator: sender,
+            payments: batch_items,
+            created_at: current_time,
+            completed_at: option::some(current_time),
+            is_completed: true,
+        };
+        object::delete(batch_uid);
+
+        // Process each payment
+        let mut payment_coin = payment;
+        i = 0;
+        while (i < vector::length(&to_usernames)) {
+            let username = vector::borrow(&to_usernames, i);
+            let amount = *vector::borrow(&amounts, i);
+            let memo = vector::borrow(&memos, i);
+            let to_address = *table::borrow(&registry.username_registry, *username);
+            
+            // Split payment coin
+            let transfer_coin = coin::split(&mut payment_coin, amount, ctx);
+            transfer::public_transfer(transfer_coin, to_address);
+
+            // Update recipient stats
+            let recipient_profile = table::borrow_mut(&mut registry.user_profiles, to_address);
+            recipient_profile.total_payments_received = recipient_profile.total_payments_received + 1;
+
+            // Record payment history
+            let payment_uid = object::new(ctx);
+            let payment_id = object::uid_to_inner(&payment_uid);
+            let payment_record = PaymentRecord {
+                id: payment_id,
+                from: sender,
+                to: to_address,
+                amount,
+                memo: *memo,
+                payment_type: PAYMENT_DIRECT,
+                related_id: option::some(batch_id),
+                timestamp: current_time,
+                status: PAYMENT_COMPLETED,
+            };
+            object::delete(payment_uid);
+
+            let sender_history = table::borrow_mut(&mut registry.payment_history, sender);
+            vector::push_back(sender_history, payment_record);
+
+            let recipient_history = table::borrow_mut(&mut registry.payment_history, to_address);
+            vector::push_back(recipient_history, payment_record);
+
+            event::emit(PaymentSent {
+                payment_id,
+                from: sender,
+                to: to_address,
+                amount,
+                payment_type: PAYMENT_DIRECT,
+                timestamp: current_time,
+            });
+
+            i = i + 1;
+        };
+
+        // Return remaining coins to sender
+        transfer::public_transfer(payment_coin, sender);
+
+        // Store the batch payment
+        table::add(&mut registry.batch_payments, batch_id, batch_payment);
+
+        event::emit(BatchPaymentCreated {
+            batch_id,
+            creator: sender,
+            total_payments: vector::length(&to_usernames),
+            total_amount,
+            timestamp: current_time,
+        });
+
+        event::emit(BatchPaymentCompleted {
+            batch_id,
+            creator: sender,
+            total_payments: vector::length(&to_usernames),
+            total_amount,
+            completed_at: current_time,
         });
     }
 
-    public entry fun unpause_platform(
-        _: &AdminCap,
-        registry: &mut PlatformRegistry
-    ) {
-        registry.is_paused = false;
-    }
-
-    public entry fun deactivate_user(
-        _: &AdminCap,
-        registry: &mut PlatformRegistry,
-        user_address: address,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        if (table::contains(&registry.user_profiles, user_address)) {
-            let profile = table::borrow_mut(&mut registry.user_profiles, user_address);
-            profile.is_active = false;
-            
-            let timestamp = clock::timestamp_ms(clock);
-            event::emit(UserDeactivated {
-                user_address,
-                admin: tx_context::sender(ctx),
-                timestamp,
-            });
-        };
-    }
-
-    // Enhanced View Functions
+    // View Functions
     public fun get_user_profile(registry: &PlatformRegistry, user_address: address): Option<UserProfile> {
         if (table::contains(&registry.user_profiles, user_address)) {
             option::some(*table::borrow(&registry.user_profiles, user_address))
@@ -1015,33 +951,6 @@ module suiconn::suiconn {
         }
     }
 
-    public fun get_user_groups(registry: &PlatformRegistry, user_address: address): vector<Group> {
-        if (table::contains(&registry.user_profiles, user_address)) {
-            let profile = table::borrow(&registry.user_profiles, user_address);
-            let mut user_groups = vector::empty();
-            let mut i = 0;
-            while (i < vector::length(&profile.groups)) {
-                let group_id = *vector::borrow(&profile.groups, i);
-                if (table::contains(&registry.groups, group_id)) {
-                    let group = *table::borrow(&registry.groups, group_id);
-                    vector::push_back(&mut user_groups, group);
-                };
-                i = i + 1;
-            };
-            user_groups
-        } else {
-            vector::empty()
-        }
-    }
-
-    public fun get_group(registry: &PlatformRegistry, group_id: ID): Option<Group> {
-        if (table::contains(&registry.groups, group_id)) {
-            option::some(*table::borrow(&registry.groups, group_id))
-        } else {
-            option::none()
-        }
-    }
-
     public fun get_split_payment(registry: &PlatformRegistry, split_id: ID): Option<SplitPayment> {
         if (table::contains(&registry.split_payments, split_id)) {
             option::some(*table::borrow(&registry.split_payments, split_id))
@@ -1050,8 +959,8 @@ module suiconn::suiconn {
         }
     }
 
-    public fun get_platform_stats(registry: &PlatformRegistry): (u64, u64, bool) {
-        (registry.total_users, registry.total_groups, registry.is_paused)
+    public fun get_platform_stats(registry: &PlatformRegistry): u64 {
+        registry.total_users
     }
 
     public fun get_user_friends(registry: &PlatformRegistry, user_address: address): vector<address> {
@@ -1069,6 +978,15 @@ module suiconn::suiconn {
             vector::contains(&profile.friends, &user2)
         } else {
             false
+        }
+    }
+
+    // View function for batch payment
+    public fun get_batch_payment(registry: &PlatformRegistry, batch_id: ID): Option<BatchPayment> {
+        if (table::contains(&registry.batch_payments, batch_id)) {
+            option::some(*table::borrow(&registry.batch_payments, batch_id))
+        } else {
+            option::none()
         }
     }
 }
