@@ -1,4 +1,4 @@
-import { useState, Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { useWallet, ConnectButton } from "@suiet/wallet-kit";
 import { formatAddress } from "@mysten/sui/utils";
 import { Button } from "./button";
@@ -9,15 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./card";
-import { UserIcon, FriendsIcon, PaymentIcon, SplitIcon, HistoryIcon, SendIcon, CheckIcon, CloseIcon } from "../icons";
-import type {
-  UserProfile,
-  FriendRequest,
-  Friend,
-  SplitPayment,
-  PaymentRecord,
-  BatchPayment
-} from '../../types';
+import type { UserProfile } from '../../types';
 import type { ReactNode } from 'react';
 
 interface SuiConnUIProps {
@@ -30,71 +22,6 @@ interface SuiConnUIProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   renderTabContent: () => ReactNode;
-
-  // Add all the props being passed from SuiConnApp
-  friendRequests: FriendRequest[];
-  friends: Friend[];
-  splitPayments: SplitPayment[];
-  paymentHistory: PaymentRecord[];
-  friendTransactionHistory: Record<string, PaymentRecord[]>;
-  friendToAdd: string;
-  setFriendToAdd: Dispatch<SetStateAction<string>>;
-  selectedFriends: string[];
-  setSelectedFriends: Dispatch<SetStateAction<string[]>>;
-  paymentRecipient: string;
-  setPaymentRecipient: Dispatch<SetStateAction<string>>;
-  paymentAmount: string;
-  setPaymentAmount: Dispatch<SetStateAction<string>>;
-  paymentMemo: string;
-  setPaymentMemo: Dispatch<SetStateAction<string>>;
-  splitTitle: string;
-  setSplitTitle: Dispatch<SetStateAction<string>>;
-  splitAmount: string;
-  setSplitAmount: Dispatch<SetStateAction<string>>;
-  splitParticipants: string;
-  setSplitParticipants: Dispatch<SetStateAction<string>>;
-  customSplitAmounts: string;
-  setCustomSplitAmounts: Dispatch<SetStateAction<string>>;
-  showFriendSelector: boolean;
-  setShowFriendSelector: Dispatch<SetStateAction<boolean>>;
-  friendSelectorFor: string;
-  setFriendSelectorFor: Dispatch<SetStateAction<string>>;
-  splitType: 'equal' | 'custom';
-  setSplitType: Dispatch<SetStateAction<'equal' | 'custom'>>;
-  batchPayments: BatchPayment[];
-  setBatchPayments: Dispatch<SetStateAction<BatchPayment[]>>;
-  showBatchPayment: boolean;
-  setShowBatchPayment: Dispatch<SetStateAction<boolean>>;
-  selectedFriendForHistory: string | null;
-  setSelectedFriendForHistory: Dispatch<SetStateAction<string | null>>;
-
-  // Handlers
-  handleSendFriendRequest: () => void;
-  handleRespondToRequest: (requestId: string, accept: boolean) => void;
-  handleSendPayment: () => void;
-  handleBatchPayment: () => void;
-  handleCreateSplitPayment: () => void;
-  handlePaySplitAmount: (splitPaymentId: string, amountOwed: number) => void;
-  openFriendSelector: (purpose: string) => void;
-  closeFriendSelector: () => void;
-  toggleFriendSelection: (friendUsername: string) => void;
-  confirmFriendSelection: () => void;
-  addBatchPaymentRow: () => void;
-  removeBatchPaymentRow: (index: number) => void;
-  updateBatchPayment: (index: number, field: keyof BatchPayment, value: string[]) => void;
-
-  // Helper
-  formatMistToSui: (mistAmount: number) => string;
-
-  // Icons (passed as props for now)
-  UserIcon: () => JSX.Element;
-  FriendsIcon: () => JSX.Element;
-  PaymentIcon: () => JSX.Element;
-  SplitIcon: () => JSX.Element;
-  HistoryIcon: () => JSX.Element;
-  SendIcon: () => JSX.Element;
-  CheckIcon: () => JSX.Element;
-  CloseIcon: () => JSX.Element;
 }
 
 export function SuiConnUI({
@@ -107,76 +34,12 @@ export function SuiConnUI({
   activeTab,
   onTabChange,
   renderTabContent,
-  // Destructure all the new props
-  friendRequests,
-  friends,
-  splitPayments,
-  paymentHistory,
-  friendTransactionHistory,
-  friendToAdd,
-  setFriendToAdd,
-  selectedFriends,
-  setSelectedFriends,
-  paymentRecipient,
-  setPaymentRecipient,
-  paymentAmount,
-  setPaymentAmount,
-  paymentMemo,
-  setPaymentMemo,
-  splitTitle,
-  setSplitTitle,
-  splitAmount,
-  setSplitAmount,
-  splitParticipants,
-  setSplitParticipants,
-  customSplitAmounts,
-  setCustomSplitAmounts,
-  showFriendSelector,
-  setShowFriendSelector,
-  friendSelectorFor,
-  setFriendSelectorFor,
-  splitType,
-  setSplitType,
-  batchPayments,
-  setBatchPayments,
-  showBatchPayment,
-  setShowBatchPayment,
-  selectedFriendForHistory,
-  setSelectedFriendForHistory,
-
-  // Destructure handlers
-  handleSendFriendRequest,
-  handleRespondToRequest,
-  handleSendPayment,
-  handleBatchPayment,
-  handleCreateSplitPayment,
-  handlePaySplitAmount,
-  openFriendSelector,
-  closeFriendSelector,
-  toggleFriendSelection,
-  confirmFriendSelection,
-  addBatchPaymentRow,
-  removeBatchPaymentRow,
-  updateBatchPayment,
-
-  // Destructure helper
-  formatMistToSui,
-
-  // Destructure Icons
-  UserIcon,
-  FriendsIcon,
-  PaymentIcon,
-  SplitIcon,
-  HistoryIcon,
-  SendIcon,
-  CheckIcon,
-  CloseIcon,
 }: SuiConnUIProps) {
   const { account, connected } = useWallet();
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="bg-blue-900/50 backdrop-blur-lg border-blue-700/50">
+      <Card className="mb-8 backdrop-blur-xl bg-white/15 border border-white/10 shadow-2xl hover:shadow-3xl transition-all duration-500">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-white">SuiConn</CardTitle>
           <CardDescription className="text-blue-200">
@@ -198,7 +61,7 @@ export function SuiConnUI({
                 <Button
                   variant="outline"
                   onClick={onDisconnect}
-                  className="border-blue-700 text-blue-200 hover:bg-blue-800"
+                  className="border-white/20 bg-white/5 text-white hover:bg-white/10 transition-all duration-300"
                 >
                   Disconnect
                 </Button>
@@ -211,12 +74,12 @@ export function SuiConnUI({
                       value={username}
                       onChange={(e) => onUsernameChange(e.target.value)}
                       placeholder="Enter username"
-                      className="flex-1 px-4 py-2 bg-blue-800/50 border border-blue-700 rounded-lg text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-4 py-2 rounded-xl border border-white/20 bg-white/15 text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
                     />
                     <Button
                       onClick={onRegister}
                       disabled={loading || !username}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
                     >
                       {loading ? 'Registering...' : 'Register'}
                     </Button>
@@ -227,13 +90,25 @@ export function SuiConnUI({
                   <div className="flex space-x-4 border-b border-blue-700/50">
                     <button
                       onClick={() => onTabChange('profile')}
-                      className={`px-4 py-2 ${
+                      className={`px-4 py-2 transition-colors duration-200 ${
                         activeTab === 'profile'
-                          ? 'text-blue-400 border-b-2 border-blue-400'
-                          : 'text-blue-200 hover:text-blue-400'
+                          ? 'text-cyan-300 border-b-2 border-cyan-300'
+                          : 'text-white/70 hover:text-cyan-300'
                       }`}
                     >
-                      <UserIcon className="inline-block mr-2" />
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
                       Profile
                     </button>
                     <button
@@ -244,7 +119,21 @@ export function SuiConnUI({
                           : 'text-blue-200 hover:text-blue-400'
                       }`}
                     >
-                      <FriendsIcon className="inline-block mr-2" />
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
                       Friends
                     </button>
                     <button
@@ -255,7 +144,19 @@ export function SuiConnUI({
                           : 'text-blue-200 hover:text-blue-400'
                       }`}
                     >
-                      <PaymentIcon className="inline-block mr-2" />
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                      </svg>
                       Payments
                     </button>
                     <button
@@ -266,7 +167,19 @@ export function SuiConnUI({
                           : 'text-blue-200 hover:text-blue-400'
                       }`}
                     >
-                      <SplitIcon className="inline-block mr-2" />
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 2v20M2 12h20" />
+                        <path d="M12 2l10 10M12 2L2 12" />
+                      </svg>
                       Splits
                     </button>
                     <button
@@ -277,7 +190,19 @@ export function SuiConnUI({
                           : 'text-blue-200 hover:text-blue-400'
                       }`}
                     >
-                      <HistoryIcon className="inline-block mr-2" />
+                      <svg
+                        className="inline-block mr-2 w-5 h-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
                       History
                     </button>
                   </div>

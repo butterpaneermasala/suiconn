@@ -16,7 +16,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../co
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import CursorFollower from "../components/CursorFollower";
+// import CursorFollower from "../components/CursorFollower";
 
 // const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
 const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
@@ -326,7 +326,6 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen">
-      <CursorFollower />
       <BubbleAnimation />
       <ScrollAnimation />
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 relative overflow-hidden">

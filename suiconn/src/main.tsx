@@ -12,13 +12,13 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Router>
-        <WalletProvider>
+      <WalletProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/app" element={<FriendListApp />} />
           <Route path="/learn-more" element={<LearnMore />} />
         </Routes>
-        </WalletProvider>
+      </WalletProvider>
     </Router>
   </React.StrictMode>
 );

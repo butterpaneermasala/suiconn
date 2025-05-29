@@ -2,6 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet, ConnectButton } from "@suiet/wallet-kit";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { formatAddress } from "@mysten/sui/utils";
+import FloatingBubbles from '../components/FloatingBubbles';
+import CoralReef from '../components/CoralReef';
+import { SuiConnUI } from '../components/ui/suiconn-ui';
+import type {
+  UserProfile,
+  FriendRequest,
+  Friend,
+  SplitPayment,
+  SplitParticipant,
+  PaymentRecord,
+  BatchPayment
+} from '../types';
+import { Card, CardTitle } from '../components/ui/card';
 
 const PACKAGE_ID = '0xb0d759fa0e301c27bee0b451b80cb9479171fe9674251eaf1d96b8a1d9693a6b';
 const REGISTRY_OBJECT_ID = '0x4432099e7bdf4b607f09a28f3e7f0feaa9ee396dba779baf12b5814e23cfda11';
@@ -12,154 +26,39 @@ const PAYMENT_HISTORY_TABLE_ID = '0x4eb7d1fa28011028dfa5337d708dee756a6a0d84b740
 const USERNAME_REGISTRY_TABLE_ID = '0xcf30d3fdd6fb90502f3e4e06f10505485c1459d3f69ca2eeab8703fa4efd7d80';
 const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
 
-// Interfaces remain the same
-interface UserProfile {
-  username: string;
-  address: string;
-  friends: string[];
-  groups: string[];
-  created_at: number;
-  is_active: boolean;
-  last_payment_time: number;
-  daily_payment_count: number;
-  last_friend_request_time: number;
-  total_payments_sent: number;
-  total_payments_received: number;
-}
-
-interface FriendRequest {
-  id: string;
-  from: string;
-  to: string;
-  status: number;
-  created_at: number;
-  updated_at: number;
-  fromUsername?: string;
-}
-
-interface Friend {
-  address: string;
-  username: string;
-}
-
-interface SplitPayment {
-  id: string;
-  creator: string;
-  title: string;
-  total_amount: number;
-  participants: SplitParticipant[];
-  created_at: number;
-  is_completed: boolean;
-  creatorUsername?: string;
-}
-
-interface SplitParticipant {
-  address: string;
-  amount_owed: number;
-  amount_paid: number;
-  has_paid: boolean;
-  username?: string;
-}
-
-interface PaymentRecord {
-  id: string;
-  from: string;
-  to: string;
-  amount: number;
-  memo: string;
-  payment_type: number;
-  related_id: string | null;
-  timestamp: number;
-  status: number;
-  fromUsername?: string;
-  toUsername?: string;
-}
-
-interface BatchPayment {
-  recipients: string[];
-  amounts: string[];
-  memos: string[];
-}
-
-// SVG Icons Components
-const UserIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const FriendsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M9 11C11.2091 11 13 9.20914 13 7C13 4.79086 11.2091 3 9 3C6.79086 3 5 4.79086 5 7C5 9.20914 6.79086 11 9 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const PaymentIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6312 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6312 13.6815 18 14.5717 18 15.5C18 16.4283 17.6312 17.3185 16.9749 17.9749C16.3185 18.6312 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const SplitIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V18C20 18.5304 19.7893 19.0391 19.4142 19.4142C19.0391 19.7893 18.5304 20 18 20H6C5.46957 20 4.96086 19.7893 4.58579 19.4142C4.21071 19.0391 4 18.5304 4 18V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M15 2H9C8.44772 2 8 2.44772 8 3V5C8 5.55228 8.44772 6 9 6H15C15.5523 6 16 5.55228 16 5V3C16 2.44772 15.5523 2 15 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 9H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 13H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 17L12 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const HistoryIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" stroke="currentColor" strokeWidth="2"/>
-    <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const SendIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+// Underwater overlay component
+const UnderwaterOverlay = () => (
+  <div className="fixed inset-0 pointer-events-none z-40">
+    <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/30 to-purple-950/40 mix-blend-overlay"></div>
+    <div className="absolute inset-0" style={{
+      backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z\' fill=\'%23ffffff\' fill-opacity=\'0.05\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
+      opacity: 0.3,
+    }}></div>
+  </div>
 );
 
 export default function SuiConnApp() {
-  const { signAndExecuteTransaction, account, connected } = useWallet();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { signAndExecuteTransaction, account, connected, disconnect } = useWallet();
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
-  const [friendsList, setFriendsList] = useState<Friend[]>([]);
-  const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
-  const [transactionHistory, setTransactionHistory] = useState<PaymentRecord[]>([]);
-  const [friendTransactionHistory, setFriendTransactionHistory] = useState<{[key: string]: PaymentRecord[]}>({});
-  const [activeTab, setActiveTab] = useState('profile');
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
+  const [showBatchPayment, setShowBatchPayment] = useState(false);
   const [selectedFriendForHistory, setSelectedFriendForHistory] = useState<string | null>(null);
+  const [friendTransactionHistory, setFriendTransactionHistory] = useState<Record<string, PaymentRecord[]>>({});
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [showFriendSelector, setShowFriendSelector] = useState(false);
+  const [friendSelectorFor, setFriendSelectorFor] = useState('');
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [batchPayments, setBatchPayments] = useState<BatchPayment[]>([{ recipients: [''], amounts: [''], memos: [''] }]);
 
   // Form states
-  const [username, setUsername] = useState('');
   const [friendToAdd, setFriendToAdd] = useState('');
-  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [paymentRecipient, setPaymentRecipient] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMemo, setPaymentMemo] = useState('');
@@ -167,260 +66,13 @@ export default function SuiConnApp() {
   const [splitAmount, setSplitAmount] = useState('');
   const [splitParticipants, setSplitParticipants] = useState('');
   const [customSplitAmounts, setCustomSplitAmounts] = useState('');
-  const [showFriendSelector, setShowFriendSelector] = useState(false);
-  const [friendSelectorFor, setFriendSelectorFor] = useState('');
   const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
-  
-  // Batch payment states
-  const [batchPayments, setBatchPayments] = useState<BatchPayment[]>([{ recipients: [''], amounts: [''], memos: [''] }]);
-  const [showBatchPayment, setShowBatchPayment] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
 
-  // Enhanced glassmorphism styles
-  const glassStyles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      padding: '20px',
-      position: 'relative' as const,
-      overflow: 'hidden'
-    },
-    backgroundEffect: {
-      position: 'absolute' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: `
-        radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(119, 198, 255, 0.3) 0%, transparent 50%)
-      `,
-      animation: 'float 6s ease-in-out infinite'
-    },
-    header: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      borderRadius: '20px',
-      padding: '20px',
-      marginBottom: '30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-      position: 'relative' as const,
-      zIndex: 10,
-      gap: '20px',
-    },
-    logo: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#fff',
-      textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
-      letterSpacing: '-0.5px'
-    },
-    glassCard: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      borderRadius: '20px',
-      padding: '25px',
-      marginBottom: '20px',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-      position: 'relative' as const,
-      zIndex: 10
-    },
-    tabContainer: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      borderRadius: '20px',
-      padding: '8px',
-      display: 'flex',
-      marginBottom: '30px',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-      position: 'relative' as const,
-      zIndex: 10
-    },
-    tab: {
-      flex: 1,
-      padding: '12px 8px',
-      textAlign: 'center' as const,
-      cursor: 'pointer',
-      borderRadius: '12px',
-      fontSize: '14px',
-      fontWeight: '500',
-      transition: 'all 0.3s ease',
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      gap: '4px'
-    },
-    activeTab: {
-      background: 'rgba(255, 255, 255, 0.2)',
-      color: '#fff',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
-    },
-    inactiveTab: {
-      color: 'rgba(255, 255, 255, 0.7)',
-      background: 'transparent'
-    },
-    input: {
-      width: '100%',
-      padding: '15px 20px',
-      fontSize: '16px',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      borderRadius: '12px',
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      color: '#fff',
-      marginBottom: '15px',
-      outline: 'none',
-      transition: 'all 0.3s ease',
-      '::placeholder': {
-        color: 'rgba(255, 255, 255, 0.6)'
-      }
-    },
-    button: {
-      width: '100%',
-      padding: '15px 25px',
-      fontSize: '16px',
-      fontWeight: '600',
-      border: 'none',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px',
-      position: 'relative' as const,
-      overflow: 'hidden',
-      marginBottom: '10px'
-    },
-    primaryButton: {
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: '#fff',
-      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)'
-    },
-    successButton: {
-      background: 'linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%)',
-      color: '#fff',
-      boxShadow: '0 8px 20px rgba(86, 204, 242, 0.4)'
-    },
-    dangerButton: {
-      background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-      color: '#fff',
-      boxShadow: '0 8px 20px rgba(255, 107, 107, 0.4)'
-    },
-    warningButton: {
-      background: 'linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)',
-      color: '#fff',
-      boxShadow: '0 8px 20px rgba(254, 202, 87, 0.4)'
-    },
-    smallButton: {
-      padding: '8px 16px',
-      fontSize: '14px',
-      borderRadius: '8px',
-      minWidth: 'auto',
-      width: 'auto'
-    },
-    cardTitle: {
-      fontSize: '22px',
-      fontWeight: '700',
-      color: '#fff',
-      marginBottom: '20px',
-      textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
-    },
-    cardSubtitle: {
-      fontSize: '16px',
-      color: 'rgba(255, 255, 255, 0.8)',
-      marginBottom: '15px'
-    },
-    cardText: {
-      fontSize: '14px',
-      color: 'rgba(255, 255, 255, 0.9)',
-      lineHeight: '1.5'
-    },
-    statGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-      gap: '15px',
-      marginTop: '20px'
-    },
-    statCard: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      borderRadius: '12px',
-      padding: '15px',
-      textAlign: 'center' as const
-    },
-    modal: {
-      position: 'fixed' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    },
-    modalContent: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(30px)',
-      WebkitBackdropFilter: 'blur(30px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      borderRadius: '20px',
-      padding: '30px',
-      maxWidth: '500px',
-      width: '100%',
-      maxHeight: '90vh',
-      overflow: 'auto',
-      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
-    },
-    notification: {
-      position: 'fixed' as const,
-      bottom: '20px',
-      right: '20px',
-      left: '20px',
-      maxWidth: '400px',
-      margin: '0 auto',
-      padding: '15px 20px',
-      borderRadius: '12px',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      color: '#fff',
-      fontSize: '14px',
-      fontWeight: '500'
-    },
-    successNotification: {
-      background: 'rgba(86, 204, 242, 0.2)'
-    },
-    errorNotification: {
-      background: 'rgba(255, 107, 107, 0.2)'
-    },
-    loadingNotification: {
-      background: 'rgba(102, 126, 234, 0.2)'
-    }
-  };
+  // Dialog states
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
   // Helper function to get username from address
   const getUsernameFromAddress = async (address: string): Promise<string> => {
@@ -536,7 +188,7 @@ export default function SuiConnApp() {
         );
         
         historyWithUsernames.sort((a, b) => b.timestamp - a.timestamp);
-        setTransactionHistory(historyWithUsernames);
+        setPaymentHistory(historyWithUsernames);
         
         // Group by friends for individual friend history
         const friendHistory: {[key: string]: PaymentRecord[]} = {};
@@ -551,7 +203,8 @@ export default function SuiConnApp() {
       }
     } catch (err) {
       console.error('Failed to load transaction history:', err);
-      setTransactionHistory([]);
+      setPaymentHistory([]);
+      setFriendTransactionHistory({});
     }
   };
 
@@ -620,9 +273,9 @@ export default function SuiConnApp() {
   const fetchFriendRequestsWithUsernames = async () => {
     if (!account?.address) return;
     try {
-      const entry = await suiClient.getDynamicFieldObject({
+      const entry = await suiClient.getDynamicFieldObject({ 
         parentId: FRIEND_REQUESTS_TABLE_ID,
-        name: {
+        name: { 
           type: 'address',
           value: account.address
         }
@@ -630,11 +283,11 @@ export default function SuiConnApp() {
 
       if (entry.data?.content?.dataType === 'moveObject') {
         const fields = entry.data.content.fields as any;
-        const requestsArray = fields.value;
+        const requestsArray = fields.value; 
         
         const pendingRequests = await Promise.all(
           requestsArray
-            .filter((req: any) => req.fields.status === 0)
+            .filter((req: any) => req.fields.status === 0) 
             .map(async (req: any) => ({
               id: req.fields.id,
               from: req.fields.from,
@@ -653,24 +306,24 @@ export default function SuiConnApp() {
     }
   };
 
-  // Fetch friends list with usernames
+  // Fetch friends list with usernames (Corrected to match Friend interface)
   const fetchFriendsList = async () => {
     if (!userProfile?.friends || userProfile.friends.length === 0) {
-      setFriendsList([]);
+      setFriends([]);
       return;
     }
     
     try {
-      const friendsWithUsernames = await Promise.all(
+      const friendsWithUsernames: Friend[] = await Promise.all(
         userProfile.friends.map(async (friendAddress: string) => ({
-          address: friendAddress,
-          username: await getUsernameFromAddress(friendAddress)
+          addr: friendAddress, // Use 'addr' to match Friend interface
+          name: await getUsernameFromAddress(friendAddress) // Use 'name' to match Friend interface
         }))
       );
       
-      setFriendsList(friendsWithUsernames);
+      setFriends(friendsWithUsernames);
     } catch (err) {
-      setFriendsList([]);
+      setFriends([]);
     }
   };
 
@@ -690,9 +343,9 @@ export default function SuiConnApp() {
     } else {
       setUserProfile(null);
       setFriendRequests([]);
-      setFriendsList([]);
+      setFriends([]);
       setSplitPayments([]);
-      setTransactionHistory([]);
+      setPaymentHistory([]);
       setFriendTransactionHistory({});
     }
   }, [connected, account?.address]);
@@ -702,7 +355,7 @@ export default function SuiConnApp() {
     if (userProfile?.friends && userProfile.friends.length > 0) {
       fetchFriendsList();
     } else {
-      setFriendsList([]);
+      setFriends([]);
     }
   }, [userProfile]);
 
@@ -721,7 +374,6 @@ export default function SuiConnApp() {
       const result = await signAndExecuteTransaction({ transaction: tx });
       setSuccess(successMessage);
       
-      // Refresh data after successful transaction
       setTimeout(() => {
         fetchUserProfile();
         fetchFriendRequestsWithUsernames();
@@ -771,6 +423,30 @@ export default function SuiConnApp() {
       setBatchPayments(newBatch);
     }
     closeFriendSelector();
+  };
+
+  // Dialog handlers
+  const handleOpenPaymentDialog = (friend: Friend) => {
+    setSelectedFriend(friend);
+    setPaymentRecipient(friend.name);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleOpenHistoryDialog = async (friend: Friend) => {
+    setSelectedFriend(friend);
+    setHistoryDialogOpen(true);
+  };
+
+  const handleClosePaymentDialog = () => {
+    setPaymentDialogOpen(false);
+    setSelectedFriend(null);
+    setPaymentAmount('');
+    setPaymentMemo('');
+  };
+
+  const handleCloseHistoryDialog = () => {
+    setHistoryDialogOpen(false);
+    setSelectedFriend(null);
   };
 
   // Batch payment functions
@@ -907,7 +583,7 @@ export default function SuiConnApp() {
         ],
       });
       }, 'Equal split payment created!');
-    } else {
+    } else { // Custom split
       const amounts = customSplitAmounts.split(',').map(a => convertSuiToMist(a.trim())).filter(a => a > 0);
       
       if (participants.length !== amounts.length) {
@@ -965,74 +641,68 @@ export default function SuiConnApp() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
-  return (
-          <div>
+        return (
+          <div className="space-y-6">
             {/* User Profile Display */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Your Profile</h3>
-              <div style={glassStyles.statGrid}>
-                <div style={glassStyles.statCard}>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Your Profile</CardTitle>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.username}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <div className="text-sm text-gray-300">
                     Username
                   </div>
-                </div>
-                <div style={glassStyles.statCard}>
+                </Card>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
-                    {friendsList.length}
+                    {friends.length}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <div className="text-sm text-gray-300">
                     Friends
                   </div>
-                </div>
-                <div style={glassStyles.statCard}>
+                </Card>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.total_payments_sent}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <div className="text-sm text-gray-300">
                     Payments Sent
                   </div>
-                </div>
-                <div style={glassStyles.statCard}>
+                </Card>
+                <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 text-center shadow-md">
                   <div style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>
                     {userProfile?.total_payments_received}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                  <div className="text-sm text-gray-300">
                     Payments Received
                   </div>
-                </div>
+                </Card>
               </div>
-              <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
-                <div style={glassStyles.cardText}>
-                  <strong>Address:</strong> {userProfile?.address.slice(0, 10)}...{userProfile?.address.slice(-8)}
+              <Card className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mt-6">
+                <div className="text-sm text-gray-300">
+                  <strong>Address:</strong> {formatAddress(account?.address || '')}
                 </div>
-                <div style={glassStyles.cardText}>
+                <div className="text-sm text-gray-300">
                   <strong>Status:</strong> {userProfile?.is_active ? 'Active' : 'Inactive'}
                 </div>
-                <div style={glassStyles.cardText}>
+                <div className="text-sm text-gray-300">
                   <strong>Pending Requests:</strong> {friendRequests.length}
                 </div>
-              </div>
-        </div>
+              </Card>
+            </Card>
 
             {/* Split Payments Overview */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Recent Split Payments</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Recent Split Payments</CardTitle>
               {splitPayments.length > 0 ? (
                 splitPayments.slice(0, 3).map((split, index) => (
-                  <div key={index} style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    marginBottom: '10px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                  }}>
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
                     <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
                       {split.title}
                     </div>
-                    <div style={glassStyles.cardText}>
+                    <div className="text-sm text-gray-300">
                       Total: {formatMistToSui(split.total_amount)} | 
                       Creator: {split.creatorUsername} | 
                       Status: {split.is_completed ? 'Completed' : 'Pending'}
@@ -1040,97 +710,95 @@ export default function SuiConnApp() {
                   </div>
                 ))
               ) : (
-                <div style={glassStyles.cardText}>No split payments</div>
+                <div className="text-sm text-gray-300">No split payments</div>
               )}
               {splitPayments.length > 3 && (
-                <button 
+                <button
                   onClick={() => setActiveTab('splits')}
-                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton}}
-                >
+                  className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 mt-4">
                   View All Split Payments
                 </button>
               )}
-            </div>
+            </Card>
           </div>
         );
 
       case 'friends':
         return (
-          <div>
+          <div className="space-y-6">
             {/* Send Friend Request */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Add Friend</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Add Friend</CardTitle>
               <input
                 type="text"
                 value={friendToAdd}
                 onChange={(e) => setFriendToAdd(e.target.value)}
                 placeholder="Enter friend's username"
-                style={glassStyles.input}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
               />
-              <button 
-                onClick={handleSendFriendRequest} 
+              <button
+                onClick={handleSendFriendRequest}
                 disabled={loading || !friendToAdd}
-                style={{...glassStyles.button, ...glassStyles.primaryButton}}
-              >
-                <SendIcon />
+                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 w-full">
+                <svg
+                  className="inline-block mr-2 w-5 h-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
                 {loading ? 'Sending...' : 'Send Friend Request'}
               </button>
-            </div>
+            </Card>
 
             {/* Pending Friend Requests */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Pending Requests ({friendRequests.length})</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Pending Requests ({friendRequests.length})</CardTitle>
               {friendRequests.length > 0 ? (
                 friendRequests.map((req, index) => (
-                  <div key={index} style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    marginBottom: '15px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                  }}>
+                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
                     <div style={{ marginBottom: '10px' }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
                         {req.fromUsername}
                       </div>
-                      <div style={glassStyles.cardText}>
-                        From: {req.from.slice(0, 8)}...{req.from.slice(-6)}
+                      <div className="text-sm text-gray-300">
+                        From: {formatAddress(req.from)}
                       </div>
-                      <div style={glassStyles.cardText}>
+                      <div className="text-sm text-gray-300">
                         {new Date(req.created_at).toLocaleDateString()}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
                         onClick={() => handleRespondToRequest(req.id, true)}
-                        style={{...glassStyles.button, ...glassStyles.successButton, ...glassStyles.smallButton}}
-                        disabled={loading}
-                      >
-                        <CheckIcon />
+                        className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500">
                         Accept
                       </button>
                       <button 
                         onClick={() => handleRespondToRequest(req.id, false)}
-                        style={{...glassStyles.button, ...glassStyles.dangerButton, ...glassStyles.smallButton}}
-                        disabled={loading}
-                      >
-                        <CloseIcon />
+                        className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500">
                         Reject
                       </button>
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={glassStyles.cardText}>No pending friend requests</div>
+                <div className="text-sm text-gray-300">No pending friend requests</div>
               )}
-            </div>
+            </Card>
 
             {/* Friends List */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Your Friends ({friendsList.length})</h3>
-              {friendsList.length > 0 ? (
-                friendsList.map((friend, index) => {
-                  const friendHistory = friendTransactionHistory[friend.address] || [];
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Your Friends ({friends.length})</CardTitle>
+              {friends.length > 0 ? (
+                friends.map((friend, index) => {
+                  const friendHistory = friendTransactionHistory[friend.addr] || [];
                   const totalSent = friendHistory
                     .filter(tx => tx.from === account?.address)
                     .reduce((sum, tx) => sum + tx.amount, 0);
@@ -1139,41 +807,27 @@ export default function SuiConnApp() {
                     .reduce((sum, tx) => sum + tx.amount, 0);
                   
                   return (
-                    <div key={index} style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      padding: '15px',
-                      borderRadius: '12px',
-                      marginBottom: '15px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
+                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
-                          {friend.username}
+                          {friend.name}
                         </div>
-                        <div style={glassStyles.cardText}>
-                          {friend.address.slice(0, 8)}...{friend.address.slice(-6)}
+                        <div className="text-sm text-gray-300">
+                          {formatAddress(friend.addr)}
                         </div>
-                        <div style={glassStyles.cardText}>
+                        <div className="text-sm text-gray-300">
                           Sent: {formatMistToSui(totalSent)} | Received: {formatMistToSui(totalReceived)}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                         <button 
-                          onClick={() => {
-                            setPaymentRecipient(friend.username);
-                            setActiveTab('payments');
-                          }}
-                          style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton}}
-                        >
+                          onClick={() => handleOpenPaymentDialog(friend)}
+                          className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500">
                           Pay
                         </button>
                         <button 
-                          onClick={() => setSelectedFriendForHistory(friend.address)}
-                          style={{...glassStyles.button, ...glassStyles.warningButton, ...glassStyles.smallButton}}
-                        >
+                          onClick={() => handleOpenHistoryDialog(friend)}
+                          className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-amber-600 to-orange-700 text-white hover:from-amber-500 hover:to-orange-600 shadow-lg shadow-amber-500/30 border-amber-500">
                           History
                         </button>
                       </div>
@@ -1181,111 +835,131 @@ export default function SuiConnApp() {
                   );
                 })
               ) : (
-                <div style={glassStyles.cardText}>No friends yet. Send some friend requests!</div>
+                <div className="text-sm text-gray-300">No friends yet. Send some friend requests!</div>
               )}
-            </div>
+            </Card>
           </div>
         );
 
       case 'payments':
         return (
-                        <div>
+          <div className="space-y-6">
             {/* Send Payment */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Send Payment</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Send Payment</CardTitle>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                          <input
-                            type="text"
+                <input
+                  type="text"
                   value={paymentRecipient}
                   onChange={(e) => setPaymentRecipient(e.target.value)}
                   placeholder="Recipient username"
-                  style={{...glassStyles.input, marginBottom: 0, flex: 1}}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                  style={{ marginBottom: 0, flex: 1 }}
                 />
                 <button 
                   onClick={() => openFriendSelector('payment')}
-                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton, width: 'auto'}}
-                  disabled={friendsList.length === 0}
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500"
+                  style={{ width: 'auto' }}
+                  disabled={friends.length === 0}
                 >
-                  <FriendsIcon />
+                  <svg
+                    className="inline-block mr-2 w-5 h-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
                   Select
                 </button>
-                        </div>
+              </div>
               <input
                 type="number"
                 step="0.000000001"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 placeholder="Amount in SUI (e.g., 0.001)"
-                style={glassStyles.input}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
               />
-                          <input
-                            type="text"
+              <input
+                type="text"
                 value={paymentMemo}
                 onChange={(e) => setPaymentMemo(e.target.value)}
                 placeholder="Memo (optional)"
-                style={glassStyles.input}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
               />
               <button 
                 onClick={handleSendPayment} 
                 disabled={loading || !paymentRecipient || !paymentAmount}
-                style={{...glassStyles.button, ...glassStyles.successButton}}
-              >
-                <SendIcon />
+                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full">
+                <svg
+                  className="inline-block mr-2 w-5 h-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
                 {loading ? 'Sending...' : 'Send Payment'}
               </button>
-                        </div>
+            </Card>
 
             {/* Batch Payment */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Batch Payment</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Batch Payment</CardTitle>
               <button 
                 onClick={() => setShowBatchPayment(true)}
-                style={{...glassStyles.button, ...glassStyles.warningButton}}
-              >
+                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-amber-600 to-orange-700 text-white hover:from-amber-500 hover:to-orange-600 shadow-lg shadow-amber-500/30 border-amber-500 w-full">
                 Create Batch Payment
               </button>
-              <div style={glassStyles.cardText}>
+              <div className="text-sm text-gray-300">
                 Send multiple payments at once to save time and gas fees
-                      </div>
-            </div>
+              </div>
+            </Card>
 
             {/* Split Payments */}
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Create Split Payment</h3>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Create Split Payment</CardTitle>
               
               {/* Split Type Selector */}
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ ...glassStyles.cardSubtitle, marginBottom: '10px' }}>Split Type:</div>
+                <div className="text-sm font-medium text-white/90 mb-2">Split Type:</div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     onClick={() => setSplitType('equal')}
-                    style={{
-                      ...glassStyles.button,
-                      ...(splitType === 'equal' ? glassStyles.primaryButton : { background: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.7)' }),
-                      flex: 1
-                    }}
+                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'equal' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                    style={{ flex: 1 }}
                   >
                     Equal Split
                   </button>
                   <button
                     onClick={() => setSplitType('custom')}
-                    style={{
-                      ...glassStyles.button,
-                      ...(splitType === 'custom' ? glassStyles.primaryButton : { background: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.7)' }),
-                      flex: 1
-                    }}
+                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'custom' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                    style={{ flex: 1 }}
                   >
                     Custom Split
                   </button>
                 </div>
               </div>
 
-                          <input
-                            type="text"
+              <input
+                type="text"
                 value={splitTitle}
                 onChange={(e) => setSplitTitle(e.target.value)}
                 placeholder="Split title (e.g., Dinner bill)"
-                style={glassStyles.input}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
               />
 
               {splitType === 'equal' ? (
@@ -1295,99 +969,111 @@ export default function SuiConnApp() {
                   value={splitAmount}
                   onChange={(e) => setSplitAmount(e.target.value)}
                   placeholder="Total amount in SUI"
-                  style={glassStyles.input}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                 />
               ) : (
-                          <input
-                            type="text"
+                <input
+                  type="text"
                   value={customSplitAmounts}
                   onChange={(e) => setCustomSplitAmounts(e.target.value)}
                   placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
-                  style={glassStyles.input}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                 />
               )}
 
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                          <input
-                            type="text"
+                <input
+                  type="text"
                   value={splitParticipants}
                   onChange={(e) => setSplitParticipants(e.target.value)}
                   placeholder="Participants (comma-separated usernames)"
-                  style={{...glassStyles.input, marginBottom: 0, flex: 1}}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                  style={{ marginBottom: 0, flex: 1 }}
                 />
                 <button 
                   onClick={() => openFriendSelector('split')}
-                  style={{...glassStyles.button, ...glassStyles.primaryButton, ...glassStyles.smallButton, width: 'auto'}}
-                  disabled={friendsList.length === 0}
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500"
+                  style={{ width: 'auto' }}
+                  disabled={friends.length === 0}
                 >
-                  <FriendsIcon />
+                  <svg
+                    className="inline-block mr-2 w-5 h-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
                   Select
                 </button>
-                        </div>
+              </div>
 
               <button 
-                onClick={handleCreateSplitPayment} 
+                onClick={handleCreateSplitPayment}
                 disabled={loading || !splitTitle || 
                   (splitType === 'equal' && (!splitAmount || !splitParticipants)) ||
                   (splitType === 'custom' && (!customSplitAmounts || !splitParticipants))
                 }
-                style={{...glassStyles.button, ...glassStyles.primaryButton}}
-              >
-                <SplitIcon />
+                className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full">
+                <svg
+                  className="inline-block mr-2 w-5 h-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2v20M2 12h20" />
+                  <path d="M12 2l10 10M12 2L2 12" />
+                </svg>
                 {loading ? 'Creating...' : `Create ${splitType === 'equal' ? 'Equal' : 'Custom'} Split`}
               </button>
-                      </div>
+            </Card>
           </div>
         );
-                      
+
       case 'splits':
         return (
-                      <div>
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Your Split Payments ({splitPayments.length})</h3>
+          <div>
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Your Split Payments ({splitPayments.length})</CardTitle>
               {splitPayments.length > 0 ? (
                 splitPayments.map((split, index) => {
                   const userParticipant = split.participants.find(p => p.address === account?.address);
                   const isCreator = split.creator === account?.address;
                   
                   return (
-                    <div key={index} style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      padding: '20px',
-                      borderRadius: '12px',
-                      marginBottom: '15px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
+                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
                       <div style={{ marginBottom: '15px' }}>
                         <div style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '10px' }}>
                           {split.title}
-                                </div>
-                        <div style={glassStyles.cardText}>
+                        </div>
+                        <div className="text-sm text-gray-300">
                           <strong>Total:</strong> {formatMistToSui(split.total_amount)}
-                              </div>
-                        <div style={glassStyles.cardText}>
+                        </div>
+                        <div className="text-sm text-gray-300">
                           <strong>Creator:</strong> {split.creatorUsername} {isCreator && '(You)'}
-                          </div>
-                        <div style={glassStyles.cardText}>
+                        </div>
+                        <div className="text-sm text-gray-300">
                           <strong>Status:</strong> {split.is_completed ? 'Completed' : 'Pending'}
-                      </div>
+                        </div>
 
                         {/* Participants */}
-                        <div style={{ 
-                          background: 'rgba(255, 255, 255, 0.05)', 
-                          padding: '15px', 
-                          borderRadius: '8px', 
-                          marginTop: '15px' 
-                        }}>
-                          <div style={{ ...glassStyles.cardSubtitle, marginBottom: '10px' }}>Participants:</div>
+                        <div className="text-sm text-gray-300 mt-2">
+                          Participants:
+                        </div>
+                        <div className="space-y-2">
                           {split.participants.map((participant, pIndex) => (
-                            <div key={pIndex} style={{ 
-                              ...glassStyles.cardText, 
-                              marginBottom: '5px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}>
+                            <div key={pIndex} className="flex justify-between items-center">
                               <span>
                                 {participant.username}: {formatMistToSui(participant.amount_owed)}
                                 {participant.address === account?.address && ' (You)'}
@@ -1398,64 +1084,48 @@ export default function SuiConnApp() {
                               }}>
                                 {participant.has_paid ? 'Paid' : 'Pending'}
                               </span>
-                              </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
+                        </div>
                         
                         {/* Action buttons */}
                         {userParticipant && !userParticipant.has_paid && !split.is_completed && (
                           <button 
                             onClick={() => handlePaySplitAmount(split.id, userParticipant.amount_owed)}
-                            style={{...glassStyles.button, ...glassStyles.successButton}}
-                            disabled={loading}
-                          >
+                            className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 mt-4">
                             {loading ? 'Paying...' : `Pay ${formatMistToSui(userParticipant.amount_owed)}`}
                           </button>
                         )}
                         
                         {userParticipant && userParticipant.has_paid && (
-                          <div style={{ 
-                            background: 'rgba(76, 175, 80, 0.2)', 
-                            color: '#4CAF50', 
-                            padding: '10px', 
-                            borderRadius: '8px', 
-                            textAlign: 'center',
-                            marginTop: '10px'
-                          }}>
+                          <div className="text-sm text-gray-300 mt-2">
                             You have paid your share
-                      </div>
+                          </div>
                         )}
                         
                         {isCreator && (
-                          <div style={{ 
-                            background: 'rgba(102, 126, 234, 0.2)', 
-                            color: '#667eea', 
-                            padding: '10px', 
-                            borderRadius: '8px', 
-                            textAlign: 'center',
-                            marginTop: '10px'
-                          }}>
+                          <div className="text-sm text-gray-300 mt-2">
                             You created this split
-                        </div>
+                          </div>
                         )}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div style={glassStyles.cardText}>No split payments found</div>
+                <div className="text-sm text-gray-300">No split payments found</div>
               )}
-                                  </div>
-                                </div>
+            </Card>
+          </div>
         );
 
       case 'history':
         return (
           <div>
-            <div style={glassStyles.glassCard}>
-              <h3 style={glassStyles.cardTitle}>Transaction History ({transactionHistory.length})</h3>
-              {transactionHistory.length > 0 ? (
-                transactionHistory.map((record, index) => {
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <CardTitle className="text-xl font-bold text-white mb-4">Transaction History ({paymentHistory.length})</CardTitle>
+              {paymentHistory.length > 0 ? (
+                paymentHistory.map((record, index) => {
                   const isOutgoing = record.from === account?.address;
                   const paymentTypeText = record.payment_type === 0 ? 'Direct Payment' : 
                                         record.payment_type === 1 ? 'Split Payment' : 'Group Payment';
@@ -1463,13 +1133,7 @@ export default function SuiConnApp() {
                                    record.status === 1 ? 'Completed' : 'Failed';
                   
                   return (
-                    <div key={index} style={{
-                      background: isOutgoing ? 'rgba(255, 193, 7, 0.1)' : 'rgba(76, 175, 80, 0.1)',
-                      padding: '15px',
-                      borderRadius: '12px',
-                      marginBottom: '15px',
-                      border: `1px solid ${isOutgoing ? 'rgba(255, 193, 7, 0.3)' : 'rgba(76, 175, 80, 0.3)'}`
-                    }}>
+                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
                       <div style={{ 
                         fontWeight: '600', 
                         color: '#fff', 
@@ -1479,28 +1143,28 @@ export default function SuiConnApp() {
                         gap: '8px'
                       }}>
                         {isOutgoing ? 'Sent' : 'Received'} - {paymentTypeText}
-                                      </div>
-                      <div style={glassStyles.cardText}>
+                      </div>
+                      <div className="text-sm text-gray-300">
                         {isOutgoing ? `To: ${record.toUsername}` : `From: ${record.fromUsername}`}
-                                  </div>
-                      <div style={glassStyles.cardText}>
+                      </div>
+                      <div className="text-sm text-gray-300">
                         Amount: {formatMistToSui(record.amount)}
-                                </div>
+                      </div>
                       {record.memo && (
-                        <div style={glassStyles.cardText}>
+                        <div className="text-sm text-gray-300">
                           Memo: {record.memo}
-                          </div>
-                        )}
-                      <div style={glassStyles.cardText}>
+                        </div>
+                      )}
+                      <div className="text-sm text-gray-300">
                         {new Date(record.timestamp).toLocaleDateString()} - {statusText}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div style={glassStyles.cardText}>No transaction history</div>
+                <div className="text-sm text-gray-300">No transaction history</div>
               )}
-            </div>
+            </Card>
           </div>
         );
 
@@ -1509,369 +1173,326 @@ export default function SuiConnApp() {
     }
   };
 
-  return (
-    <div style={glassStyles.container}>
-      {/* Background Effect */}
-      <div style={glassStyles.backgroundEffect}></div>
-      
-      {/* CSS Animations */}
-      <style>
-        {`
-          @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            25% { transform: translate(5px, -5px) rotate(1deg); }
-            50% { transform: translate(-3px, 3px) rotate(-1deg); }
-            75% { transform: translate(-5px, -3px) rotate(1deg); }
-          }
-          
-          input::placeholder {
-            color: rgba(255, 255, 255, 0.6) !important;
-          }
-          
-          input:focus {
-            border-color: rgba(255, 255, 255, 0.4) !important;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1) !important;
-          }
-          
-          button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2) !important;
-          }
-          
-          button:active {
-            transform: translateY(0);
-          }
-        `}
-      </style>
-
-      {/* Header */}
-      <div style={glassStyles.header}>
-        <h1 style={glassStyles.logo}>SuiConn</h1>
-        <ConnectButton />
-      </div>
-
-      {!connected ? (
-        <div style={{...glassStyles.glassCard, textAlign: 'center', padding: '60px 30px'}}>
-          <h2 style={glassStyles.cardTitle}>Welcome to SuiConn</h2>
-          <div style={glassStyles.cardSubtitle}>Connect your wallet to start using the social payment platform</div>
-        </div>
-      ) : !userProfile ? (
-        <div style={glassStyles.glassCard}>
-          <h2 style={glassStyles.cardTitle}>Register</h2>
-                          <input
-                            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Choose a unique username"
-            style={glassStyles.input}
-            maxLength={20}
+  // Add dialog content
+  const renderPaymentDialog = () => {
+    if (!selectedFriend || !paymentDialogOpen) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4">
+          <CardTitle className="text-xl font-bold text-white mb-4">Send Payment to {selectedFriend.name}</CardTitle>
+          <input
+            type="number"
+            step="0.000000001"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="Amount in SUI"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
           />
-          <button 
-            onClick={handleRegister} 
-            disabled={loading || !username}
-            style={{...glassStyles.button, ...glassStyles.primaryButton}}
-          >
-            <UserIcon />
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-          <div style={glassStyles.cardText}>
-            Username must be unique and contain only letters, numbers, and underscores
-                        </div>
-                      </div>
-      ) : (
-                      <div>
-          {/* Tab Navigation */}
-          <div style={glassStyles.tabContainer}>
-            {[
-              { key: 'profile', icon: <UserIcon />, label: 'Profile' },
-              { key: 'friends', icon: <FriendsIcon />, label: 'Friends' },
-              { key: 'payments', icon: <PaymentIcon />, label: 'Pay' },
-              { key: 'splits', icon: <SplitIcon />, label: 'Splits' },
-              { key: 'history', icon: <HistoryIcon />, label: 'History' }
-            ].map(tab => (
-              <div
-                key={tab.key}
-                style={{
-                  ...glassStyles.tab,
-                  ...(activeTab === tab.key ? glassStyles.activeTab : glassStyles.inactiveTab)
-                }}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </div>
-            ))}
+          <input
+            type="text"
+            value={paymentMemo}
+            onChange={(e) => setPaymentMemo(e.target.value)}
+            placeholder="Memo (optional)"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleSendPayment}
+              disabled={loading || !paymentAmount}
+              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 flex-1">
+              {loading ? 'Sending...' : 'Send Payment'}
+            </button>
+            <button
+              onClick={handleClosePaymentDialog}
+              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 flex-1">
+              Cancel
+            </button>
           </div>
-
-          {/* Tab Content */}
-          {renderTabContent()}
         </div>
-      )}
+      </div>
+    );
+  };
 
-      {/* Batch Payment Modal */}
-      {showBatchPayment && (
-        <div style={glassStyles.modal}>
-          <div style={glassStyles.modalContent}>
-            <h3 style={glassStyles.cardTitle}>Create Batch Payment</h3>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <button 
-                onClick={() => openFriendSelector('batch')}
-                style={{...glassStyles.button, ...glassStyles.warningButton}}
-                disabled={friendsList.length === 0}
-              >
-                <FriendsIcon />
-                Select Friends for Batch
-              </button>
-            </div>
-
-            {batchPayments.map((payment, index) => (
-              <div key={index} style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '15px',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                  <h4 style={{ margin: 0, color: '#fff' }}>Payment #{index + 1}</h4>
-                  {batchPayments.length > 1 && (
-                    <button 
-                      onClick={() => removeBatchPaymentRow(index)}
-                      style={{...glassStyles.button, ...glassStyles.dangerButton, ...glassStyles.smallButton}}
-                    >
-                      <CloseIcon />
-                      Remove
-                    </button>
+  const renderHistoryDialog = () => {
+    if (!selectedFriend || !historyDialogOpen) return null;
+    
+    const friendHistory = friendTransactionHistory[selectedFriend.addr] || [];
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+          <CardTitle className="text-xl font-bold text-white mb-4">Transaction History with {selectedFriend.name}</CardTitle>
+          {friendHistory.length > 0 ? (
+            friendHistory.map((record, index) => {
+              const isOutgoing = record.from === account?.address;
+              return (
+                <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-3">
+                  <div className="font-medium text-white mb-1">
+                    {isOutgoing ? 'Sent' : 'Received'} - {formatMistToSui(record.amount)}
+                  </div>
+                  <div className="text-sm text-gray-300">
+                    {new Date(record.timestamp).toLocaleDateString()}
+                  </div>
+                  {record.memo && (
+                    <div className="text-sm text-gray-300 mt-1">
+                      Memo: {record.memo}
+                    </div>
                   )}
                 </div>
-                
-                          <input
-                            type="text"
-                  value={payment.recipients[0]}
-                  onChange={(e) => updateBatchPayment(index, 'recipients', [e.target.value])}
-                  placeholder="Recipient username"
-                  style={glassStyles.input}
-                />
-                
-                          <input
-                            type="number"
-                  step="0.000000001"
-                  value={payment.amounts[0]}
-                  onChange={(e) => updateBatchPayment(index, 'amounts', [e.target.value])}
-                  placeholder="Amount in SUI"
-                  style={glassStyles.input}
-                />
-                
-                                <input
-                                  type="text"
-                  value={payment.memos[0]}
-                  onChange={(e) => updateBatchPayment(index, 'memos', [e.target.value])}
-                  placeholder="Memo (optional)"
-                  style={glassStyles.input}
-                />
-                              </div>
-                            ))}
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
-              <button 
-                onClick={addBatchPaymentRow}
-                style={{...glassStyles.button, ...glassStyles.warningButton, marginBottom: 0}}
-              >
-                Add Payment
-              </button>
-              <button 
-                onClick={handleBatchPayment}
-                style={{...glassStyles.button, ...glassStyles.successButton, marginBottom: 0}}
-                disabled={loading}
-              >
-                {loading ? 'Sending...' : 'Send Batch'}
-              </button>
-              <button 
-                onClick={() => setShowBatchPayment(false)}
-                style={{...glassStyles.button, ...glassStyles.dangerButton, marginBottom: 0}}
-              >
-                Cancel
-              </button>
-                          </div>
-          </div>
+              );
+            })
+          ) : (
+            <div className="text-white/70 text-center py-4">No transactions found</div>
+          )}
+          <button
+            onClick={handleCloseHistoryDialog}
+            className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 w-full mt-4">
+            Close
+          </button>
         </div>
-      )}
+      </div>
+    );
+  };
 
-      {/* Friend Transaction History Modal */}
-      {selectedFriendForHistory && (
-        <div style={glassStyles.modal}>
-          <div style={glassStyles.modalContent}>
-            <h3 style={glassStyles.cardTitle}>
-              Transaction History with {friendsList.find(f => f.address === selectedFriendForHistory)?.username}
-            </h3>
-            
-            {friendTransactionHistory[selectedFriendForHistory]?.length > 0 ? (
-              friendTransactionHistory[selectedFriendForHistory].map((record, index) => {
-                const isOutgoing = record.from === account?.address;
-                const paymentTypeText = record.payment_type === 0 ? 'Direct' : 
-                                      record.payment_type === 1 ? 'Split' : 'Group';
-                
-                return (
-                  <div key={index} style={{
-                    background: isOutgoing ? 'rgba(255, 193, 7, 0.1)' : 'rgba(76, 175, 80, 0.1)',
-                    padding: '15px',
-                    borderRadius: '12px',
-                    marginBottom: '10px',
-                    border: `1px solid ${isOutgoing ? 'rgba(255, 193, 7, 0.3)' : 'rgba(76, 175, 80, 0.3)'}`
-                  }}>
-                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
-                      {isOutgoing ? 'Sent' : 'Received'} - {paymentTypeText}
-                    </div>
-                    <div style={glassStyles.cardText}>
-                      Amount: {formatMistToSui(record.amount)}
-                    </div>
-                    {record.memo && (
-                      <div style={glassStyles.cardText}>
-                        Memo: {record.memo}
-                      </div>
-                    )}
-                    <div style={glassStyles.cardText}>
-                      {new Date(record.timestamp).toLocaleDateString()} at {new Date(record.timestamp).toLocaleTimeString()}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div style={glassStyles.cardText}>
-                No transaction history with this friend
+  // The main component structure
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 relative overflow-hidden">
+      {/* Background components */}
+      <UnderwaterOverlay />
+      <CoralReef />
+
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-60 right-32 w-80 h-80 bg-gradient-to-r from-purple-400/15 to-pink-600/15 rounded-full blur-3xl animate-bounce" style={{ animationDuration: '8s' }}></div>
+        <div className="absolute bottom-40 left-1/3 w-64 h-64 bg-gradient-to-r from-emerald-400/10 to-teal-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-50">
+        {/* Use the new SuiConnUI component, passing only the defined props */}
+        <SuiConnUI
+          userProfile={userProfile}
+          username={username}
+          loading={loading}
+          onRegister={handleRegister}
+          onUsernameChange={setUsername}
+          onDisconnect={disconnect}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          renderTabContent={renderTabContent}
+        />
+
+        {/* Status Messages */}
+        {error && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-500/90 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border border-red-400/30 animate-fade-in-up">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-300 rounded-full animate-pulse"></div>
+              <div>
+                <div className="font-medium">Error</div>
+                <div className="text-sm opacity-90">{error}</div>
               </div>
-            )}
-            
-            <button 
-              onClick={() => setSelectedFriendForHistory(null)}
-              style={{...glassStyles.button, ...glassStyles.primaryButton, marginTop: '20px'}}
-            >
-              <CheckIcon />
-              Close
-            </button>
-                        </div>
-                      </div>
-      )}
-
-      {/* Friend Selector Modal */}
-      {showFriendSelector && (
-        <div style={glassStyles.modal}>
-          <div style={glassStyles.modalContent}>
-            <h3 style={glassStyles.cardTitle}>
-              {friendSelectorFor === 'split' ? 'Select Friends for Split' : 
-               friendSelectorFor === 'payment' ? 'Select Friend to Pay' :
-               friendSelectorFor === 'batch' ? 'Select Friends for Batch Payment' : 'Select Friends'}
-            </h3>
-            
-            {friendsList.length > 0 ? (
-                      <div>
-                {friendsList.map((friend, index) => (
-                  <div 
-                    key={index} 
-                    style={{
-                      background: selectedFriends.includes(friend.username) ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                      padding: '15px',
-                      borderRadius: '12px',
-                      marginBottom: '10px',
-                      cursor: 'pointer',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '15px'
-                    }}
-                    onClick={() => {
-                      if (friendSelectorFor === 'payment') {
-                        setSelectedFriends([friend.username]);
-                      } else {
-                        toggleFriendSelection(friend.username);
-                      }
-                    }}
-                  >
-                    <input
-                      type={friendSelectorFor === 'payment' ? 'radio' : 'checkbox'}
-                      checked={selectedFriends.includes(friend.username)}
-                      onChange={() => {}}
-                      style={{ accentColor: '#667eea' }}
-                    />
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#fff' }}>{friend.username}</div>
-                      <div style={glassStyles.cardText}>
-                        {friend.address.slice(0, 8)}...{friend.address.slice(-6)}
-                                </div>
-                                </div>
-                              </div>
-                            ))}
-                
-                <div style={{ marginTop: '30px', display: 'flex', gap: '10px' }}>
-                  <button 
-                    onClick={confirmFriendSelection}
-                    style={{...glassStyles.button, ...glassStyles.successButton, marginBottom: 0}}
-                    disabled={selectedFriends.length === 0}
-                  >
-                    <CheckIcon />
-                    Confirm ({selectedFriends.length})
-                  </button>
-                  <button 
-                    onClick={closeFriendSelector}
-                    style={{...glassStyles.button, ...glassStyles.dangerButton, marginBottom: 0}}
-                  >
-                    <CloseIcon />
-                    Cancel
-                  </button>
-                          </div>
-                      </div>
-            ) : (
-              <div style={{ textAlign: 'center' }}>
-                <div style={glassStyles.cardText}>No friends available</div>
-                <button 
-                  onClick={closeFriendSelector}
-                  style={{...glassStyles.button, ...glassStyles.primaryButton}}
-                >
-                  Close
-                </button>
-                    </div>
-              )}
+            </div>
+          </div>
+        )}
+        
+        {success && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border border-green-400/30 animate-fade-in-up">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
+              <div>
+                <div className="font-medium">Success</div>
+                <div className="text-sm opacity-90">{success}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {loading && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500/90 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border border-blue-400/30 animate-fade-in-up">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+              <div>
+                <div className="font-medium">Processing</div>
+                <div className="text-sm opacity-90">Transaction in progress...</div>
+              </div>
             </div>
           </div>
         )}
 
-      {/* Status Messages */}
-        {error && (
-        <div style={{...glassStyles.notification, ...glassStyles.errorNotification}}>
-          <CloseIcon />
-          <strong>Error:</strong> {error}
-          </div>
-        )}
-      
-        {success && (
-        <div style={{...glassStyles.notification, ...glassStyles.successNotification}}>
-          <CheckIcon />
-          <strong>Success:</strong> {success}
-          </div>
-        )}
-      
-      {loading && (
-        <div style={{...glassStyles.notification, ...glassStyles.loadingNotification}}>
-          <div style={{
-            width: '20px',
-            height: '20px',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            borderTop: '2px solid #fff',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }}></div>
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-          <strong>Processing:</strong> Transaction in progress...
+        {/* Add dialogs */}
+        {renderPaymentDialog()}
+        {renderHistoryDialog()}
       </div>
+
+      {/* Friend selector component (rendered outside the main UI) */}
+      {showFriendSelector && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4">
+            <CardTitle className="text-xl font-bold text-white mb-4">Select Friends</CardTitle>
+            <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
+              {friends.length > 0 ? (
+                friends.map((friend) => (
+                  <div
+                    key={friend.addr}
+                    onClick={() => toggleFriendSelection(friend.name)}
+                    className={`p-3 rounded-xl cursor-pointer transition-colors duration-150 ${
+                      selectedFriends.includes(friend.name) ? 'bg-cyan-500/30 border border-cyan-400/50' : 'bg-white/5 border border-white/10'
+                    }`}
+                  >
+                    {friend.name}
+                  </div>
+                ))
+              ) : (
+                <div className="text-white/70 text-center">No friends available.</div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={confirmFriendSelection} className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 flex-1">
+                Confirm Selection
+              </button>
+              <button onClick={closeFriendSelector} className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 flex-1">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+
+// Update the styles at the bottom of the file to add glowing/bright effects
+const styles = `
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out;
+  }
+
+  .suiconn-input {
+    @apply w-full px-4 py-3 bg-white/15 border border-indigo-300/60 rounded-xl text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/80 focus:border-transparent transition-all duration-200;
+  }
+
+  .suiconn-button {
+    @apply px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border;
+  }
+
+  .suiconn-button.primary {
+    @apply bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/50 border-cyan-500;
+  }
+
+  .suiconn-button.success {
+    @apply bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-400 hover:to-teal-500 shadow-lg shadow-emerald-500/50 border-emerald-500;
+  }
+
+  .suiconn-button.warning {
+    @apply bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 shadow-lg shadow-amber-500/50 border-amber-500;
+  }
+
+  .suiconn-button.danger {
+    @apply bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-400 hover:to-pink-500 shadow-lg shadow-rose-500/50 border-rose-500;
+  }
+
+  .suiconn-button.small {
+    @apply px-3 py-2 text-sm;
+  }
+
+  .suiconn-glass-card {
+    @apply backdrop-blur-xl bg-white/10 border border-indigo-400/30 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 shadow-indigo-500/20;
+  }
+
+  .suiconn-card-title {
+    @apply text-xl font-bold text-white mb-4;
+  }
+
+  .suiconn-card-subtitle {
+    @apply text-sm font-medium text-white/90 mb-2;
+  }
+
+  .suiconn-card-text {
+    @apply text-sm text-white/80;
+  }
+
+  .suiconn-stat-grid {
+    @apply grid grid-cols-2 sm:grid-cols-4 gap-4;
+  }
+
+  .suiconn-stat-card {
+    @apply backdrop-blur-xl bg-white/15 border border-indigo-400/40 rounded-xl p-4 text-center hover:bg-white/20 transition-all duration-200 shadow-indigo-500/20;
+  }
+
+  .suiconn-notification {
+    @apply fixed bottom-4 left-1/2 transform -translate-x-1/2 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border transition-all duration-200;
+  }
+
+  .suiconn-notification.error {
+    @apply bg-rose-500/90 border-rose-400/30 shadow-rose-500/40;
+  }
+
+  .suiconn-notification.success {
+    @apply bg-emerald-500/90 border-emerald-400/30 shadow-emerald-500/40;
+  }
+
+  .suiconn-notification.loading {
+    @apply bg-indigo-500/90 border-indigo-400/30 shadow-indigo-500/40;
+  }
+
+  /* Dialog styles */
+  .suiconn-dialog {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50;
+  }
+
+  .suiconn-dialog-content {
+    @apply suiconn-glass-card max-w-md w-full mx-4;
+  }
+
+  /* Friend selector styles */
+  .suiconn-friend-selector {
+    @apply p-3 rounded-xl cursor-pointer transition-colors duration-150;
+  }
+
+  .suiconn-friend-selector.selected {
+    @apply bg-indigo-500/50 border border-indigo-400/70 shadow-indigo-500/30;
+  }
+
+  .suiconn-friend-selector:not(.selected) {
+    @apply bg-white/15 border border-white/25;
+  }
+
+  /* Tab styles */
+  .suiconn-tab {
+    @apply px-4 py-2 transition-colors duration-200;
+  }
+
+  .suiconn-tab.active {
+    @apply text-cyan-300 border-b-2 border-cyan-300;
+  }
+
+  .suiconn-tab:not(.active) {
+    @apply text-white/80 hover:text-cyan-300;
+  }
+
+  /* Transaction history styles */
+  .suiconn-transaction {
+    @apply suiconn-glass-card mb-3;
+  }
+
+  .suiconn-transaction.sent {
+    @apply bg-amber-500/20 border-amber-500/40 shadow-amber-500/20;
+  }
+
+  .suiconn-transaction.received {
+    @apply bg-emerald-500/20 border-emerald-500/40 shadow-emerald-500/20;
+  }
+`;
