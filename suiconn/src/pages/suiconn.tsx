@@ -21,10 +21,7 @@ const REGISTRY_OBJECT_ID = '0x3253ee9cce59c10d5f9baebeac6421d9bb352ec646eea0c6d3
 const ACCESS_CONTROL_ID = '0x632fc800de54d66d0acba91781dd8c6ce6c3a5493d731c4ab5493c964b2b791e';
 const USER_PROFILES_TABLE_ID = '0x1cd47e4cd1396e3e2e2ad1f0a78584eada28f9839765f91eef6f4bdc63127968'; 
 const FRIEND_REQUESTS_TABLE_ID = '0x08d4b05af1a29ef4382b5bb39142ab8dc2d80b945c183981ecb8c29d01a8c528'; 
-const SPLIT_PAYMENTS_TABLE_ID = '0x8d12107c3bad71f2e34e5942b86eb090cd30365d856bc29e7938a206676bcb76'; 
 const PAYMENT_HISTORY_TABLE_ID = '0x1d4a0809c5cace89bee87188e4140deeca8f4571744537184afc187ab53e7038'; 
-const USERNAME_REGISTRY_TABLE_ID = '0x11ffb0b9230d0517242753f813c000bc1b8b19e304b885fabb8d12af30ad0e2a'; 
-const BATCH_PAYMENTS_TABLE_ID = '0x0e184df10aa37f5c0b812c39362a4b0266c5847496ad228ff3cb18ef63b63f5f';
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') }); 
 
 const UnderwaterOverlay = () => (
@@ -45,8 +42,7 @@ export default function SuiConnApp() {
   const [success, setSuccess] = useState<string | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
-  const [showBatchPayment, setShowBatchPayment] = useState(false);
-  const [selectedFriendForHistory, setSelectedFriendForHistory] = useState<string | null>(null);
+
   const [friendTransactionHistory, setFriendTransactionHistory] = useState<Record<string, PaymentRecord[]>>({});
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -73,7 +69,6 @@ export default function SuiConnApp() {
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
-  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
   // New state for payment section view
   const [paymentAction, setPaymentAction] = useState<'none' | 'send' | 'split' | 'batch'>('none');
@@ -472,7 +467,7 @@ export default function SuiConnApp() {
       tx.setGasBudget(100000000);
       txFunction(tx);
       
-      const result = await signAndExecuteTransaction({ transaction: tx });
+      await signAndExecuteTransaction({ transaction: tx });
       setSuccess(successMessage);
       
       setTimeout(() => {
@@ -801,21 +796,6 @@ export default function SuiConnApp() {
     }
   };
 
-  const handlePaySplitAmount = (splitPaymentId: string, amountOwed: number) => {
-    executeTransaction((tx) => {
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountOwed)]);
-      tx.moveCall({
-        target: `${PACKAGE_ID}::suiconn::pay_split_amount`,
-        arguments: [
-          tx.object(REGISTRY_OBJECT_ID),
-          tx.pure.id(splitPaymentId),
-          coin,
-          tx.object('0x6'),
-        ],
-      });
-    }, 'Split payment contribution made!');
-  };
-
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 5000);
@@ -990,14 +970,8 @@ export default function SuiConnApp() {
             <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
               <CardTitle className="text-xl font-bold text-white mb-4">Your Friends ({friends.length})</CardTitle>
               {friends.length > 0 ? (
-                friends.map((friend, index) => {
-                  const friendHistory = friendTransactionHistory[friend.address] || [];
-                  const totalSent = friendHistory
-                    .filter((tx: any) => tx.type === 'sent')
-                    .reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
-                  const totalReceived = friendHistory
-                    .filter((tx: any) => tx.type === 'received')
-                    .reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
+                friends.map((friend) => {
+                  // const friendHistory = friendTransactionHistory[friend.address] || [];
                   
                   return (
                     <div key={friend.address} className="flex items-center justify-between p-3 bg-white rounded-lg shadow">

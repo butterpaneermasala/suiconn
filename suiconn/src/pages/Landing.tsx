@@ -12,7 +12,7 @@ import {
   Layers
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";

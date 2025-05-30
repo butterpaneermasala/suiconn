@@ -1,12 +1,8 @@
-import { Dispatch, SetStateAction } from "react";
 import { useWallet, ConnectButton } from "@suiet/wallet-kit";
-import { formatAddress } from "@mysten/sui/utils";
 import { Button } from "./button";
 import {
   Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "./card";
 import type { UserProfile } from '../../types';
@@ -37,7 +33,7 @@ export function SuiConnUI({
   renderTabContent,
   logo,
 }: SuiConnUIProps) {
-  const { account, connected } = useWallet();
+  const { connected } = useWallet();
 
   return (
     <div className="w-full h-full space-y-6">
