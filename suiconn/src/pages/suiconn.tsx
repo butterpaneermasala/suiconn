@@ -509,7 +509,7 @@ export default function SuiConnApp() {
     setFriendSelectorFor(purpose);
     setShowFriendSelector(true);
     if (purpose === 'recipient') {
-      setSelectedFriends([]); 
+    setSelectedFriends([]);
     }
   };
 
@@ -794,6 +794,21 @@ export default function SuiConnApp() {
         });
       }, 'Custom split payment created!');
     }
+  };
+
+  const handlePaySplitAmount = (splitPaymentId: string, amountOwed: number) => {
+    executeTransaction((tx) => {
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountOwed)]);
+      tx.moveCall({
+        target: `${PACKAGE_ID}::suiconn::pay_split_amount`,
+        arguments: [
+          tx.object(REGISTRY_OBJECT_ID),
+          tx.pure.id(splitPaymentId),
+          coin,
+          tx.object('0x6'),
+        ],
+      });
+    }, 'Split payment contribution made!');
   };
 
   useEffect(() => {
@@ -1180,6 +1195,30 @@ export default function SuiConnApp() {
                       </button>
                     </div>
 
+              {/* Conditional Participant Selection based on Recipient */}
+              {splitRecipient ? (
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}> {/* Added flexWrap */}
+                <input
+                  type="text"
+                  value={splitParticipants}
+                  onChange={(e) => setSplitParticipants(e.target.value)}
+                  placeholder="Participants (comma-separated usernames)"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                  style={{ marginBottom: 0, flex: 1 }}
+                />
+                <button 
+                  onClick={() => openFriendSelector('split')}
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                  style={{ width: 'auto' }}
+                  disabled={friends.length === 0}
+                >
+                        Select Participants
+                </button>
+              </div>
+                ) : (
+                  <div className="text-sm text-gray-400 mb-4">Please select a recipient first to choose participants.</div>
+                )}
+
               {splitType === 'equal' ? (
                 <input
                   type="number"
@@ -1198,25 +1237,6 @@ export default function SuiConnApp() {
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                 />
               )}
-
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}> {/* Added flexWrap */}
-                <input
-                  type="text"
-                  value={splitParticipants}
-                  onChange={(e) => setSplitParticipants(e.target.value)}
-                  placeholder="Participants (comma-separated usernames)"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                  style={{ marginBottom: 0, flex: 1 }}
-                />
-                <button 
-                  onClick={() => openFriendSelector('split')}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                  style={{ width: 'auto' }}
-                  disabled={friends.length === 0}
-                >
-                        Select Participants
-                </button>
-              </div>
 
                     {/* Add deadline input */}
                     <input
@@ -1304,7 +1324,7 @@ export default function SuiConnApp() {
                     </button>
                           </div>
                         )}
-              </Card>
+            </Card>
             )}
           </div>
         );
@@ -1314,29 +1334,68 @@ export default function SuiConnApp() {
           <div className="space-y-6">
             {/* Split Payments Overview */}
             <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
-              <CardTitle className="text-xl font-bold text-white mb-4">Recent Split Payments</CardTitle>
+              <CardTitle className="text-xl font-bold text-white mb-4">Your Split Payments</CardTitle>
               {splitPayments.length > 0 ? (
-                splitPayments.slice(0, 3).map((split, index) => (
-                  <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
-                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px', fontSize: '16px' }}>
-                      {split.title}
+                splitPayments.map((split, index) => {
+                  const currentUserParticipant = split.participants.find(p => p.address === account?.address);
+                  const isCreator = split.creator === account?.address;
+
+                  if (!currentUserParticipant && !isCreator) return null; // Only show splits user is involved in
+                  
+                  return (
+                    <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-4 space-y-3">
+                      <div style={{ fontWeight: '600', color: '#fff', fontSize: '18px' }}>
+                          {split.title}
+                        </div>
+                        <div className="text-sm text-gray-300">
+                        Total Amount: {formatMistToSui(split.total_amount)}
+                        </div>
+                        <div className="text-sm text-gray-300">
+                        Creator: {split.creatorUsername} ({formatAddress(split.creator)})
+                        </div>
+                      
+                      {isCreator && (
+                        <div className="text-sm text-gray-300">
+                          Status: {split.is_completed ? 'Completed' : 'Pending Collection'}
+                          </div>
+                        )}
+
+                      {currentUserParticipant && !isCreator && (
+                        <div className="text-sm text-gray-300 space-y-2">
+                          <div>
+                            Your Share: {formatMistToSui(currentUserParticipant.amount_owed)}
+                        </div>
+                          <div>
+                            Status: {currentUserParticipant.has_paid ? 'Paid' : 'Outstanding'}
+                        </div>
+                        
+                          {!currentUserParticipant.has_paid && !split.is_completed && (
+                          <button 
+                              onClick={() => handlePaySplitAmount(split.id, currentUserParticipant.amount_owed)}
+                              disabled={loading}
+                              className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 mt-2 w-full"
+                            >
+                              {loading ? 'Paying...' : 'Pay Your Share'}
+                          </button>
+                        )}
+                          </div>
+                        )}
+                        
+                          <div className="text-sm text-gray-300 mt-2">
+                        Participants:
+                        <ul className="list-disc list-inside ml-2">
+                          {split.participants.map((p, pIndex) => (
+                            <li key={pIndex} className="text-xs">
+                              {p.username} ({formatAddress(p.address)}): {formatMistToSui(p.amount_owed)} - {p.has_paid ? 'Paid' : 'Outstanding'}
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
-                      Total: {formatMistToSui(split.total_amount)} | 
-                      Creator: {split.creatorUsername} | 
-                      Status: {split.status === 'completed' ? 'Completed' : 'Pending'}
-                      </div>
-                      </div>
-                ))
+                    </div>
+                  );
+                })
               ) : (
-                <div className="text-sm text-gray-300">No split payments</div>
-              )}
-              {splitPayments.length > 3 && (
-                <button
-                  onClick={() => setActiveTab('splits')}
-                  className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 mt-4">
-                  View All Split Payments
-                </button>
+                <div className="text-sm text-gray-300">No split payments found where you are a participant or creator.</div>
               )}
             </Card>
           </div>
@@ -1353,16 +1412,16 @@ export default function SuiConnApp() {
                   <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                     <div className="font-medium text-white mb-1">
                       {record.fromUsername} - {formatMistToSui(record.amount)}
-                  </div>
+                      </div>
                     <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
                       From: {record.fromUsername} ({formatAddress(record.from)}) to {record.toUsername} ({formatAddress(record.to)})
-                  </div>
-                    {record.memo && (
+                      </div>
+                      {record.memo && (
                       <div className="text-xs text-gray-300 mt-1">
-                        Memo: {record.memo}
-                  </div>
-                    )}
-                </div>
+                          Memo: {record.memo}
+                        </div>
+                      )}
+                      </div>
                 ))
               ) : (
                 <div className="text-white/70 text-center py-4">No transactions found</div>
