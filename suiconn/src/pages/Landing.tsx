@@ -340,45 +340,48 @@ const Landing = () => {
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-50">
+        <div className="container mx-auto px-4 py-8 relative z-50">
           {/* Header Section */}
-          <Card className="mb-8 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl animate-on-scroll">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                  <CardTitle className="text-2xl sm:text-3xl font-bold text-white">SuiConn</CardTitle>
-                  <CardDescription className="text-gray-300">
-                    Decentralized Friend Management & Payments on Sui
-                  </CardDescription>
-                </div>
-                <div className="flex gap-4">
-                  <ConnectButton />
-                </div>
+          <Card className="mb-0 backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl animate-on-scroll">
+            <div className="flex flex-col sm:flex-row justify-between items-center p-4 gap-4">
+              <div className="flex items-center space-x-3">
+                <img src="/suiConn.svg" alt="SuiConn Logo" className="w-12 h-auto" />
+                <h1 className="text-2xl font-bold text-white">SuiConn</h1>
               </div>
-            </CardHeader>
+              <div className="flex-shrink-0">
+                <ConnectButton />
+              </div>
+            </div>
           </Card>
 
+          {/* Logo Below Header */}
+          <div className="flex justify-center hidden sm:flex">
+            <img src="/suiConn.svg" alt="SuiConn Logo" className="w-64 h-auto" />
+          </div>
+
           {/* Hero Section */}
-          <div className="text-center mb-24 max-w-6xl mx-auto relative">
-            <div className="mb-12 flex justify-center animate-on-scroll">
+          <div className="text-center mb-12 max-w-6xl mx-auto relative">
+            <div className="mb-8 flex justify-center animate-on-scroll">
               <div className="relative group">
                 <div className="absolute -inset-8 bg-gradient-to-r from-cyan-400/20 to-purple-600/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
-                <div className="flex items-center text-6xl sm:text-8xl font-black relative z-10">
+                <div className="flex items-center text-6xl sm:text-8xl font-black relative z-10 hidden sm:flex">
                   <div className="text-blue-400">Sui</div>
                   <div className="text-white">Conn</div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-8">
-              <h1 className="text-5xl sm:text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight animate-on-scroll delay-100">
+            <div className="space-y-6">
+              <h1 className="text-3xl sm:text-7xl md:text-8xl font-black bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent leading-tight animate-on-scroll delay-100">
                 The Future of
                 <br />
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                   Blockchain
                 </span>
                 <br />
-                Social Payments
+                Social
+                <br className="sm:hidden"/>
+                Payments
               </h1>
 
               <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed font-light animate-on-scroll delay-200">
@@ -386,7 +389,7 @@ const Landing = () => {
                 social features. Connect, transact, and thrive in the decentralized economy.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12 animate-on-scroll delay-300">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8 animate-on-scroll delay-300">
                 <Link to="/app" className="w-full sm:w-auto">
                   <Button size="lg" className="w-full text-lg sm:text-xl px-8 sm:px-12 py-6 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:via-blue-500 hover:to-purple-500 text-white rounded-2xl shadow-2xl hover:shadow-cyan-500/25 transform hover:scale-105 transition-all duration-500 font-semibold">
                     <Sparkles className="mr-3 w-6 h-6" />

@@ -37,18 +37,16 @@ module suiconn::suiconn {
     const ESELF_FRIEND_REQUEST: u64 = 26;
     const EZERO_PARTICIPANTS: u64 = 29;
     const EOVERPAYMENT: u64 = 30;
-    const ETOO_FREQUENT_PAYMENTS: u64 = 31;
-    const EDAILY_LIMIT_EXCEEDED: u64 = 32;
     const EINVALID_USERNAME_CHARS: u64 = 33;
+    const EUSERNAME_TOO_SHORT: u64 = 34;
+    const EINVALID_MEMO_CHARS: u64 = 35;
 
     // Constants
     const MAX_FRIENDS: u64 = 500;
     const MAX_USERNAME_LENGTH: u64 = 30;
+    const MIN_USERNAME_LENGTH: u64 = 3;
     const MAX_MEMO_LENGTH: u64 = 200;
     const MAX_BATCH_SIZE: u64 = 50;
-    const MAX_DAILY_PAYMENTS: u64 = 100;
-    const MIN_PAYMENT_INTERVAL: u64 = 1000; // 1 second
-    const DAY_IN_MS: u64 = 86400000; // 24 hours
 
     // Request Status
     const REQUEST_PENDING: u8 = 0;
@@ -269,13 +267,35 @@ module suiconn::suiconn {
     // Helper function to validate username characters
     fun is_valid_username(username: &String): bool {
         let username_bytes = string::as_bytes(username);
+        let length = vector::length(username_bytes);
+        if (length < MIN_USERNAME_LENGTH || length > MAX_USERNAME_LENGTH) {
+            return false
+        };
         let mut i = 0;
-        while (i < vector::length(username_bytes)) {
+        while (i < length) {
             let byte = *vector::borrow(username_bytes, i);
             if (!((byte >= 48 && byte <= 57) ||  // 0-9
                   (byte >= 65 && byte <= 90) ||  // A-Z
                   (byte >= 97 && byte <= 122) || // a-z
                   byte == 95)) {                 // _
+                return false
+            };
+            i = i + 1;
+        };
+        true
+    }
+
+    // Helper function to validate memo characters
+    fun is_valid_memo(memo: &String): bool {
+        let memo_bytes = string::as_bytes(memo);
+        let length = vector::length(memo_bytes);
+        if (length > MAX_MEMO_LENGTH) {
+            return false
+        };
+        let mut i = 0;
+        while (i < length) {
+            let byte = *vector::borrow(memo_bytes, i);
+            if (!((byte >= 32 && byte <= 126))) { // Printable ASCII characters
                 return false
             };
             i = i + 1;
@@ -292,7 +312,7 @@ module suiconn::suiconn {
     ) {
         let sender = tx_context::sender(ctx);
         assert!(!table::contains(&registry.user_profiles, sender), EALREADY_EXISTS);
-        assert!(string::length(&username) > 0, ENAME_TOO_LONG);
+        assert!(string::length(&username) >= MIN_USERNAME_LENGTH, EUSERNAME_TOO_SHORT);
         assert!(string::length(&username) <= MAX_USERNAME_LENGTH, ENAME_TOO_LONG);
         assert!(!table::contains(&registry.username_registry, username), EUSERNAME_TAKEN);
         assert!(is_valid_username(&username), EINVALID_USERNAME_CHARS);
@@ -342,7 +362,6 @@ module suiconn::suiconn {
         assert!(vector::length(&sender_profile.friends) < MAX_FRIENDS, EMAX_FRIENDS_EXCEEDED);
 
         let current_time = clock::timestamp_ms(clock);
-        assert!(current_time - sender_profile.last_friend_request_time >= MIN_PAYMENT_INTERVAL, ETOO_FREQUENT_PAYMENTS);
         sender_profile.last_friend_request_time = current_time;
 
         // Check if request already exists
@@ -536,10 +555,12 @@ module suiconn::suiconn {
     // Custom split payment with different amounts
     public entry fun create_custom_split_payment(
         registry: &mut PlatformRegistry,
+        access_control: &mut SplitPaymentAccessTable,
         title: String,
         participants: vector<String>,
         amounts: vector<u64>,
         recipient_address: address,
+        payment_deadline: Option<u64>,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
@@ -593,7 +614,43 @@ module suiconn::suiconn {
             created_at: timestamp,
             completed_at: option::none(),
             is_completed: false,
-            payment_deadline: option::none(),
+            payment_deadline,
+        };
+
+        // Add access control for creator
+        let creator_access = SplitPaymentAccess {
+            split_id,
+            user_address: sender,
+            is_creator: true,
+            is_participant: false,
+        };
+
+        if (!table::contains(&access_control.access_control, sender)) {
+            table::add(&mut access_control.access_control, sender, vector::empty());
+        };
+        let creator_access_list = table::borrow_mut(&mut access_control.access_control, sender);
+        vector::push_back(creator_access_list, creator_access);
+
+        // Add access control for participants
+        i = 0;
+        while (i < vector::length(&participants)) {
+            let username = vector::borrow(&participants, i);
+            let participant_address = *table::borrow(&registry.username_registry, *username);
+            
+            let participant_access = SplitPaymentAccess {
+                split_id,
+                user_address: participant_address,
+                is_creator: false,
+                is_participant: true,
+            };
+
+            if (!table::contains(&access_control.access_control, participant_address)) {
+                table::add(&mut access_control.access_control, participant_address, vector::empty());
+            };
+            let participant_access_list = table::borrow_mut(&mut access_control.access_control, participant_address);
+            vector::push_back(participant_access_list, participant_access);
+            
+            i = i + 1;
         };
 
         table::add(&mut registry.split_payments, split_id, split_payment);
@@ -609,6 +666,17 @@ module suiconn::suiconn {
         });
     }
 
+    // Add new function to check payment deadline
+    public fun check_payment_deadline(split_payment: &SplitPayment, clock: &Clock): bool {
+        if (option::is_none(&split_payment.payment_deadline)) {
+            return true
+        };
+        let deadline = option::borrow(&split_payment.payment_deadline);
+        let current_time = clock::timestamp_ms(clock);
+        current_time <= *deadline
+    }
+
+    // Update pay_split_amount to check deadline
     public entry fun pay_split_amount(
         registry: &mut PlatformRegistry,
         split_id: ID,
@@ -621,6 +689,7 @@ module suiconn::suiconn {
 
         let split_payment = table::borrow_mut(&mut registry.split_payments, split_id);
         assert!(!split_payment.is_completed, EALREADY_PAID);
+        assert!(check_payment_deadline(split_payment, clock), EINVALID_REQUEST_STATUS);
 
         let mut participant_index = option::none<u64>();
         let mut i = 0;
@@ -712,7 +781,7 @@ module suiconn::suiconn {
         });
     }
 
-    // Direct Payment
+    // Update send_payment to remove rate limiting
     public entry fun send_payment(
         registry: &mut PlatformRegistry,
         to_username: String,
@@ -727,7 +796,7 @@ module suiconn::suiconn {
         assert!(table::contains(&registry.username_registry, to_username), EUSER_NOT_FOUND);
         assert!(coin::value(&payment) >= amount, EINSUFFICIENT_BALANCE);
         assert!(amount > 0, EINVALID_AMOUNT);
-        assert!(string::length(&memo) <= MAX_MEMO_LENGTH, ENAME_TOO_LONG);
+        assert!(is_valid_memo(&memo), EINVALID_MEMO_CHARS);
 
         let to_address = *table::borrow(&registry.username_registry, to_username);
         let current_time = clock::timestamp_ms(clock);
@@ -735,17 +804,7 @@ module suiconn::suiconn {
         let sender_profile = table::borrow_mut(&mut registry.user_profiles, sender);
         assert!(vector::contains(&sender_profile.friends, &to_address), ENOT_FRIENDS);
 
-        assert!(
-            current_time - sender_profile.last_payment_time >= MIN_PAYMENT_INTERVAL,
-            ETOO_FREQUENT_PAYMENTS
-        );
-
-        if (current_time - sender_profile.last_payment_time > DAY_IN_MS) {
-            sender_profile.daily_payment_count = 0;
-        };
-        assert!(sender_profile.daily_payment_count < MAX_DAILY_PAYMENTS, EDAILY_LIMIT_EXCEEDED);
-        sender_profile.daily_payment_count = sender_profile.daily_payment_count + 1;
-
+        // Remove rate limiting checks
         sender_profile.last_payment_time = current_time;
         sender_profile.total_payments_sent = sender_profile.total_payments_sent + 1;
 
@@ -832,17 +891,7 @@ module suiconn::suiconn {
 
         assert!(coin::value(&payment) >= total_amount, EINSUFFICIENT_BALANCE);
 
-        // Check rate limiting
-        assert!(
-            current_time - sender_profile.last_payment_time >= MIN_PAYMENT_INTERVAL,
-            ETOO_FREQUENT_PAYMENTS
-        );
-
-        if (current_time - sender_profile.last_payment_time > DAY_IN_MS) {
-            sender_profile.daily_payment_count = 0;
-        };
-        assert!(sender_profile.daily_payment_count + vector::length(&to_usernames) <= MAX_DAILY_PAYMENTS, EDAILY_LIMIT_EXCEEDED);
-        sender_profile.daily_payment_count = sender_profile.daily_payment_count + vector::length(&to_usernames);
+        // Remove rate limiting checks
         sender_profile.last_payment_time = current_time;
         sender_profile.total_payments_sent = sender_profile.total_payments_sent + vector::length(&to_usernames);
 
