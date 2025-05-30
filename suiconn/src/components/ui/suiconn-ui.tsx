@@ -102,11 +102,11 @@ export function SuiConnUI({
         </div>
       )}
 
-      {!connected && (
+      {/* {!connected && (
         <div className="flex justify-center">
           <ConnectButton />
         </div>
-      )}
+      )} */}
 
       {connected && !userProfile && !loading && (
         <div className="space-y-4 mt-8">
