@@ -18,9 +18,7 @@ import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 
-const PACKAGE_ID = '0x7f9abdd86213586f0eba4337f37e5073276340e8e60556ef44df70710b6d8a5d';
 const REGISTRY_OBJECT_ID = '0x3253ee9cce59c10d5f9baebeac6421d9bb352ec646eea0c6d3ecb67fbeb52d7d';
-const ACCESS_CONTROL_ID = '0x632fc800de54d66d0acba91781dd8c6ce6c3a5493d731c4ab5493c964b2b791e';
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
 // Bubble animation component
