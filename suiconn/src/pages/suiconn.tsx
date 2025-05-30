@@ -321,17 +321,17 @@ export default function SuiConnApp() {
         return;
       }
       // Example: 1 SUI = 3.701 USD (as of May 23, 2025)
-      const SUI_TO_USD = 3.701;
+      // const SUI_TO_USD = 3.701;
 
-      const convertBalance = (sui: number, currency: string) => {
-        switch (currency) {
-          case 'USD':
-            return sui * SUI_TO_USD;
-          case 'SUI':
-          default:
-            return sui;
-        }
-      };
+      // const convertBalance = (sui: number, currency: string) => {
+      //   switch (currency) {
+      //     case 'USD':
+      //       return sui * SUI_TO_USD;
+      //     case 'SUI':
+      //     default:
+      //       return sui;
+      //   }
+      // };
 
 
 
@@ -1349,22 +1349,22 @@ export default function SuiConnApp() {
                     {batchPayments.map((batch, index) => (
                       <div key={index} className="space-y-3 mb-4 p-4 bg-white/5 border border-white/10 rounded-xl">
                         <div className="flex items-center gap-3 flex-wrap"> {/* Added flex-wrap */}
-                <input
-                  type="text"
+                          <input
+                            type="text"
                             value={batch.recipient}
                             onChange={(e) => updateBatchPayment(index, 'recipient', e.target.value)}
                             placeholder="Recipient username"
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
                             disabled
-                />
-                <button 
+                          />
+                          <button
                             onClick={() => openFriendSelector('batch')}
-                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                  disabled={friends.length === 0}
-                >
-                  Select
-                </button>
-              </div>
+                            className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                            disabled={friends.length === 0}
+                          >
+                            Select
+                          </button>
+                        </div>
                         <input
                           type="number"
                           step="0.000000001"
@@ -1381,12 +1381,12 @@ export default function SuiConnApp() {
                           className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
                         />
                         {batchPayments.length > 1 && (
-              <button 
+                          <button
                             onClick={() => removeBatchPaymentRow(index)}
                             className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 w-full mt-2"
                           >
                             Remove Payment
-              </button>
+                          </button>
                         )}
                       </div>
                     ))}
