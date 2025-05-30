@@ -9,17 +9,18 @@ import {
   Globe,
   // Lock,
   TrendingUp,
-  Layers
+  Layers,
+  Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "../components/ui/card";
 import { ConnectButton } from "@suiet/wallet-kit";
 import { useState, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-// import CursorFollower from "../components/CursorFollower";
 
-// const PACKAGE_ID = '0x615781f0b6e16cbd4b290b20527851be8b23323b0547653c2e9962e8bdce3ff0';
-const REGISTRY_OBJECT_ID = '0x06d916bf05ce5a9c850d5303423c07348a3db5435464c8ab1370de63b7c4bab1';
+const PACKAGE_ID = '0x7f9abdd86213586f0eba4337f37e5073276340e8e60556ef44df70710b6d8a5d';
+const REGISTRY_OBJECT_ID = '0x3253ee9cce59c10d5f9baebeac6421d9bb352ec646eea0c6d3ecb67fbeb52d7d';
+const ACCESS_CONTROL_ID = '0x632fc800de54d66d0acba91781dd8c6ce6c3a5493d731c4ab5493c964b2b791e';
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
 // Bubble animation component
@@ -79,12 +80,10 @@ const BubbleAnimation = () => {
       setTimeout(createBubble, i * 200);
     }
 
-    // Continuous bubble creation with longer interval
     const interval = setInterval(createBubble, 800);
 
     return () => {
       clearInterval(interval);
-      // Clean up any remaining bubbles
       document.querySelectorAll('.bubble').forEach(bubble => bubble.remove());
     };
   }, []);
@@ -164,14 +163,13 @@ const ScrollAnimation = () => {
         if (isVisible) {
           element.classList.add('animate-fade-in');
         } else {
-          // Remove the animation class when element is out of view
           element.classList.remove('animate-fade-in');
         }
       });
     };
 
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
+    handleScroll();
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -241,82 +239,36 @@ const ScrollIndicator = () => (
 const Landing = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
-    totalVolume: 0,
-    totalTransactions: 0
   });
   // const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
+      // Fetch the PlatformRegistry object to read the total_users field directly
       const registryObj = await suiClient.getObject({
         id: REGISTRY_OBJECT_ID,
         options: { showContent: true }
       });
 
+      let totalUsers = 0;
+
       if (registryObj.data?.content?.dataType === 'moveObject') {
         const fields = registryObj.data.content.fields as any;
-        if (fields.lists?.fields?.id?.id) {
-          const tableId = fields.lists.fields.id.id;
-          const { data: dynamicFields } = await suiClient.getDynamicFields({
-            parentId: tableId
-          });
-
-          let totalVolume = 0;
-          let totalTransactions = 0;
-
-          // Fetch payment history for each user
-          for (const field of dynamicFields) {
-            if (field.name.type === 'address') {
-              const fieldObj = await suiClient.getObject({
-                id: field.objectId,
-                options: { showContent: true }
-              });
-
-              if (fieldObj.data?.content?.dataType === 'moveObject') {
-                const valueId = (fieldObj.data.content.fields as any).value;
-                if (typeof valueId === "string") {
-                  const friendListObj = await suiClient.getObject({
-                    id: valueId,
-                    options: { showContent: true }
-                  });
-
-                  if (friendListObj.data?.content?.dataType === 'moveObject') {
-                    const fields = friendListObj.data.content.fields as any;
-                    if (fields.payments) {
-                      const { data: paymentFields } = await suiClient.getDynamicFields({
-                        parentId: fields.payments.fields.id.id
-                      });
-
-                      for (const paymentField of paymentFields) {
-                        const paymentObj = await suiClient.getObject({
-                          id: paymentField.objectId,
-                          options: { showContent: true }
-                        });
-
-                        if (paymentObj.data?.content?.dataType === 'moveObject') {
-                          const paymentFields = paymentObj.data.content.fields as any;
-                          const history = paymentFields.value || [];
-                          totalTransactions += history.length;
-                          totalVolume += history.reduce((sum: number, item: any) => 
-                            sum + Number(item.fields.amount) / 1e9, 0);
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          setStats({
-            totalUsers: dynamicFields.length,
-            totalVolume,
-            totalTransactions
-          });
+        // Assuming total_users is a direct field in PlatformRegistry
+        if (fields.total_users !== undefined) {
+          totalUsers = Number(fields.total_users);
         }
       }
+
+      setStats({
+        totalUsers: totalUsers,
+      });
+
     } catch (err) {
       console.error('Failed to fetch stats:', err);
+      setStats({
+        totalUsers: 0,
+      });
     }
   };
 
@@ -411,81 +363,60 @@ const Landing = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-24">
             <FeatureCard
               icon={Users}
-              title="Add Friends Once"
-              description="Save friend addresses permanently. No more copy-pasting or making mistakes with long addresses."
+              title="Social Payments"
+              description="Connect with friends on the blockchain and send payments using usernames instead of complex addresses."
               delay={0.1}
             />
             <FeatureCard
               icon={Wallet}
-              title="Pay Forever"
-              description="Once added, send payments to your friends instantly with just a few clicks."
+              title="Split Payments"
+              description="Effortlessly manage group expenses. Create split payments with equal or custom amounts and track contributions."
               delay={0.2}
             />
             <FeatureCard
               icon={Zap}
               title="Batch Payments"
-              description="Send multiple payments at once. Perfect for splitting bills or group transactions."
+              description="Send multiple payments to different recipients in a single, efficient transaction."
               delay={0.3}
             />
             <FeatureCard
               icon={Shield}
-              title="Secure Storage"
-              description="Your friend list is securely stored on the blockchain, accessible only to you."
+              title="Secure & Decentralized"
+              description="Built on the Sui blockchain, ensuring secure, transparent, and censorship-resistant transactions."
               delay={0.4}
             />
             <FeatureCard
               icon={TrendingUp}
-              title="Transaction History"
-              description="Keep track of all your payments with detailed transaction history."
+              title="Payment Analytics"
+              description="Gain insights into your transaction history and track your financial activity on the platform."
               delay={0.5}
             />
             <FeatureCard
-              icon={Layers}
-              title="Easy Management"
-              description="Add, remove, and manage your friends with a simple, intuitive interface."
+              icon={Clock}
+              title="Payment Deadlines"
+              description="Set deadlines for split payment contributions and easily monitor payment status."
               delay={0.6}
             />
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-24">
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
+          <div className="flex flex-col items-center text-center mb-24">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-8 animate-on-scroll">
+              Join a growing community on SuiConn!
+            </h2>
+            <p className="text-lg text-gray-300 mb-12 max-w-2xl animate-on-scroll delay-100">
+              See how many users are already connecting with friends, sending payments,
+              and exploring the future of decentralized social finance.
+            </p>
+            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll w-full max-w-sm delay-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-400">Active Users</p>
+                    <p className="text-sm text-gray-400">Active Users on SuiConn</p>
                     <h3 className="text-2xl font-bold text-white mt-1">{stats.totalUsers}</h3>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
                     <Users className="text-cyan-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Total Transactions</p>
-                    <h3 className="text-2xl font-bold text-white mt-1">{stats.totalTransactions}</h3>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-600/20 flex items-center justify-center">
-                    <Wallet className="text-purple-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-xl animate-on-scroll">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Total Volume</p>
-                    <h3 className="text-2xl font-bold text-white mt-1">{stats.totalVolume.toFixed(2)} SUI</h3>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-600/20 flex items-center justify-center">
-                    <Shield className="text-emerald-400" />
                   </div>
                 </div>
               </CardContent>
