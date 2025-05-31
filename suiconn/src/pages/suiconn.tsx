@@ -710,9 +710,73 @@ export default function SuiConnApp() {
     return (mistAmount / 1_000_000_000).toFixed(9) + ' SUI';
   };
 
+  // Add new helper function for currency conversion
+  const convertToSui = (amount: number, fromCurrency: string): number => {
+    if (fromCurrency === 'SUI') return amount;
+    const rate = exchangeRates[fromCurrency.toLowerCase()];
+    return rate ? amount / rate : amount;
+  };
+
+  // Add new helper function for currency display
+  const formatCurrency = (amount: number, currency: string): string => {
+    if (currency === 'SUI') return `${amount.toFixed(9)} SUI`;
+    return `${amount.toFixed(2)} ${currency}`;
+  };
+
+  // Update the payment dialog content
+  const renderPaymentDialog = () => {
+    if (!selectedFriend || !paymentDialogOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4">
+          <CardTitle className="text-xl font-bold text-white mb-4">Send Payment to {selectedFriend.username}</CardTitle>
+          <div className="mb-4">
+            <div className="text-sm text-gray-300 mb-2">Amount in {selectedCurrency}</div>
+            <input
+              type="number"
+              step="0.000000001"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              placeholder={`Amount in ${selectedCurrency}`}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+            />
+            {selectedCurrency !== 'SUI' && (
+              <div className="text-xs text-gray-400 mt-1">
+                ≈ {formatCurrency(convertToSui(Number(paymentAmount), selectedCurrency), 'SUI')}
+              </div>
+            )}
+          </div>
+          <input
+            type="text"
+            value={paymentMemo}
+            onChange={(e) => setPaymentMemo(e.target.value)}
+            placeholder="Memo (optional)"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleSendPayment}
+              disabled={loading || !paymentAmount}
+              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 flex-1">
+              {loading ? 'Sending...' : 'Send Payment'}
+            </button>
+            <button
+              onClick={handleClosePaymentDialog}
+              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 flex-1">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Update handleSendPayment to handle currency conversion
   const handleSendPayment = () => {
     executeTransaction((tx) => {
-      const amountInMist = convertSuiToMist(paymentAmount);
+      const amountInSui = convertToSui(Number(paymentAmount), selectedCurrency);
+      const amountInMist = convertSuiToMist(amountInSui.toString());
       const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountInMist)]);
       tx.moveCall({
         target: `${PACKAGE_ID}::suiconn::send_payment`,
@@ -741,7 +805,8 @@ export default function SuiConnApp() {
 
     executeTransaction((tx) => {
       validPayments.forEach(payment => {
-        const amountInMist = convertSuiToMist(payment.amount.toString());
+        const amountInSui = convertToSui(payment.amount, selectedCurrency);
+        const amountInMist = convertSuiToMist(amountInSui.toString());
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountInMist)]);
         tx.moveCall({
           target: `${PACKAGE_ID}::suiconn::send_payment`,
@@ -1365,14 +1430,22 @@ export default function SuiConnApp() {
                             Select
                           </button>
                         </div>
-                        <input
-                          type="number"
-                          step="0.000000001"
-                          value={batch.amount}
-                          onChange={(e) => updateBatchPayment(index, 'amount', parseFloat(e.target.value))}
-                          placeholder="Amount in SUI"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
-                        />
+                        <div>
+                          <div className="text-sm text-gray-300 mb-2">Amount in {selectedCurrency}</div>
+                          <input
+                            type="number"
+                            step="0.000000001"
+                            value={batch.amount}
+                            onChange={(e) => updateBatchPayment(index, 'amount', parseFloat(e.target.value))}
+                            placeholder={`Amount in ${selectedCurrency}`}
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+                          />
+                          {selectedCurrency !== 'SUI' && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              ≈ {formatCurrency(convertToSui(batch.amount, selectedCurrency), 'SUI')}
+                            </div>
+                          )}
+                        </div>
                         <input
                           type="text"
                           value={batch.memo}
@@ -1521,47 +1594,6 @@ export default function SuiConnApp() {
       default:
         return null;
     }
-  };
-
-  // Add dialog content
-  const renderPaymentDialog = () => {
-    if (!selectedFriend || !paymentDialogOpen) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4">
-          <CardTitle className="text-xl font-bold text-white mb-4">Send Payment to {selectedFriend.username}</CardTitle>
-          <input
-            type="number"
-            step="0.000000001"
-            value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
-            placeholder="Amount in SUI"
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-          />
-          <input
-            type="text"
-            value={paymentMemo}
-            onChange={(e) => setPaymentMemo(e.target.value)}
-            placeholder="Memo (optional)"
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-          />
-          <div className="flex gap-3">
-            <button
-              onClick={handleSendPayment}
-              disabled={loading || !paymentAmount}
-              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 flex-1">
-              {loading ? 'Sending...' : 'Send Payment'}
-            </button>
-            <button
-              onClick={handleClosePaymentDialog}
-              className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 flex-1">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const renderHistoryDialog = () => {
