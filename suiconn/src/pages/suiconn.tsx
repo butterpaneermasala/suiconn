@@ -864,7 +864,10 @@ export default function SuiConnApp() {
     });
     
     if (splitType === 'equal') {
-      const amountInMist = convertSuiToMist(splitAmount);
+      const amountInSui = selectedCurrency === 'SUI' 
+        ? Number(splitAmount)
+        : convertToSui(Number(splitAmount), selectedCurrency);
+      const amountInMist = convertSuiToMist(amountInSui.toString());
       executeTransaction((tx) => {
       tx.moveCall({
         target: `${PACKAGE_ID}::suiconn::create_split_payment`,
@@ -880,7 +883,13 @@ export default function SuiConnApp() {
       });
       }, 'Equal split payment created!');
     } else {
-      const amounts = customSplitAmounts.split(',').map(a => convertSuiToMist(a.trim())).filter(a => a > 0);
+      const amounts = customSplitAmounts.split(',').map(a => {
+        const amount = Number(a.trim());
+        const amountInSui = selectedCurrency === 'SUI' 
+          ? amount
+          : convertToSui(amount, selectedCurrency);
+        return convertSuiToMist(amountInSui.toString());
+      }).filter(a => a > 0);
       
       if (participants.length !== amounts.length) {
         setError('Number of participants must match number of amounts');
@@ -1395,9 +1404,11 @@ export default function SuiConnApp() {
               )}
               {selectedCurrency !== 'SUI' && (
                 <div className="text-xs text-gray-400 mt-1">
-                  ≈ {customSplitAmounts.split(',').map(amount => 
-                    formatCurrency(convertToSui(Number(amount.trim()), selectedCurrency), 'SUI')
-                  ).join(', ')}
+                  ≈ {splitType === 'equal' 
+                    ? formatCurrency(convertToSui(Number(splitAmount), selectedCurrency), 'SUI')
+                    : customSplitAmounts.split(',').map(amount => 
+                        formatCurrency(convertToSui(Number(amount.trim()), selectedCurrency), 'SUI')
+                      ).join(', ')}
                 </div>
               )}
 
