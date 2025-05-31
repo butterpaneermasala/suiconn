@@ -161,7 +161,7 @@ export default function SuiConnApp() {
           value: address
         }
       });
-
+      
       return entry.data?.content !== null;
     } catch (err) {
       return false;
@@ -172,7 +172,7 @@ export default function SuiConnApp() {
   const fetchUserProfile = async () => {
     if (!account?.address) return;
     setLoading(true);
-
+    
     try {
       const entry = await suiClient.getDynamicFieldObject({
         parentId: USER_PROFILES_TABLE_ID,
@@ -198,7 +198,7 @@ export default function SuiConnApp() {
           total_payments_sent: parseInt(profileData.total_payments_sent) || 0,
           total_payments_received: parseInt(profileData.total_payments_received) || 0,
         };
-
+        
         setUserProfile(profile);
         setUsername(profile.username);
       }
@@ -225,7 +225,7 @@ export default function SuiConnApp() {
       if (entry.data?.content?.dataType === 'moveObject') {
         const fields = entry.data.content.fields as any;
         const historyArray = fields.value || [];
-
+        
         const historyWithUsernames = await Promise.all(
           historyArray.map(async (record: any) => {
             const fromUsername = await getUsernameFromAddress(record.fields.from);
@@ -236,16 +236,16 @@ export default function SuiConnApp() {
             const status = parseInt(record.fields.status);
 
             return {
-              id: record.fields.id,
-              from: record.fields.from,
-              to: record.fields.to,
-              amount: parseInt(record.fields.amount),
-              memo: record.fields.memo,
+            id: record.fields.id,
+            from: record.fields.from,
+            to: record.fields.to,
+            amount: parseInt(record.fields.amount),
+            memo: record.fields.memo,
               payment_type: paymentType === 0 ? 'direct' :
                 paymentType === 1 ? 'split' :
                   paymentType === 2 ? 'batch' : 'unknown',
-              related_id: record.fields.related_id,
-              timestamp: parseInt(record.fields.timestamp),
+            related_id: record.fields.related_id,
+            timestamp: parseInt(record.fields.timestamp),
               status: status === 0 ? 'pending' :
                 status === 1 ? 'completed' :
                   status === 2 ? 'failed' : 'unknown',
@@ -254,10 +254,10 @@ export default function SuiConnApp() {
             };
           })
         );
-
+        
         historyWithUsernames.sort((a, b) => b.timestamp - a.timestamp);
         setPaymentHistory(historyWithUsernames);
-
+        
         // Group by friends for individual friend history
         const friendHistory: { [key: string]: PaymentRecord[] } = {};
         historyWithUsernames.forEach(record => {
@@ -433,9 +433,9 @@ export default function SuiConnApp() {
   const fetchFriendRequestsWithUsernames = async () => {
     if (!account?.address) return;
     try {
-      const entry = await suiClient.getDynamicFieldObject({
+      const entry = await suiClient.getDynamicFieldObject({ 
         parentId: FRIEND_REQUESTS_TABLE_ID,
-        name: {
+        name: { 
           type: 'address',
           value: account.address
         }
@@ -443,11 +443,11 @@ export default function SuiConnApp() {
 
       if (entry.data?.content?.dataType === 'moveObject') {
         const fields = entry.data.content.fields as any;
-        const requestsArray = fields.value;
-
+        const requestsArray = fields.value; 
+        
         const pendingRequests = await Promise.all(
           requestsArray
-            .filter((req: any) => req.fields.status === 0)
+            .filter((req: any) => req.fields.status === 0) 
             .map(async (req: any) => ({
               id: req.fields.id,
               from: req.fields.from,
@@ -458,7 +458,7 @@ export default function SuiConnApp() {
               fromUsername: await getUsernameFromAddress(req.fields.from)
             }))
         );
-
+        
         setFriendRequests(pendingRequests);
       }
     } catch (err) {
@@ -472,7 +472,7 @@ export default function SuiConnApp() {
       setFriends([]);
       return;
     }
-
+    
     try {
       const friendsWithUsernames: Friend[] = await Promise.all(
         userProfile.friends.map(async (friendAddress: string) => ({
@@ -481,7 +481,7 @@ export default function SuiConnApp() {
           added_at: Date.now() // Since we don't have this info from the backend
         }))
       );
-
+      
       setFriends(friendsWithUsernames);
     } catch (err) {
       setFriends([]);
@@ -526,15 +526,15 @@ export default function SuiConnApp() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
+    
     try {
       const tx = new Transaction();
       tx.setGasBudget(100000000);
       txFunction(tx);
-
+      
       await signAndExecuteTransaction({ transaction: tx });
       setSuccess(successMessage);
-
+      
       setTimeout(() => {
         fetchUserProfile();
         fetchFriendRequestsWithUsernames();
@@ -574,7 +574,7 @@ export default function SuiConnApp() {
     setFriendSelectorFor(purpose);
     setShowFriendSelector(true);
     if (purpose === 'recipient') {
-      setSelectedFriends([]);
+    setSelectedFriends([]);
     }
   };
 
@@ -584,7 +584,7 @@ export default function SuiConnApp() {
   };
 
   const toggleFriendSelection = (friendUsername: string) => {
-    setSelectedFriends(prev =>
+    setSelectedFriends(prev => 
       prev.includes(friendUsername)
         ? prev.filter(f => f !== friendUsername)
         : [...prev, friendUsername]
@@ -794,7 +794,7 @@ export default function SuiConnApp() {
 
   // Batch payment execution
   const handleBatchPayment = () => {
-    const validPayments = batchPayments.filter(payment =>
+    const validPayments = batchPayments.filter(payment => 
       payment.recipient && payment.amount > 0
     );
 
@@ -862,26 +862,26 @@ export default function SuiConnApp() {
       recipientAddress,
       splitType
     });
-
+    
     if (splitType === 'equal') {
       const amountInMist = convertSuiToMist(splitAmount);
       executeTransaction((tx) => {
-        tx.moveCall({
-          target: `${PACKAGE_ID}::suiconn::create_split_payment`,
-          arguments: [
-            tx.object(REGISTRY_OBJECT_ID),
+      tx.moveCall({
+        target: `${PACKAGE_ID}::suiconn::create_split_payment`,
+        arguments: [
+          tx.object(REGISTRY_OBJECT_ID),
             tx.object(ACCESS_CONTROL_ID),
-            tx.pure.string(splitTitle),
+          tx.pure.string(splitTitle),
             tx.pure.u64(amountInMist),
             tx.pure.vector('string', participants), // Send usernames as expected by contract
             tx.pure.address(recipientAddress),
-            tx.object('0x6'),
-          ],
-        });
+          tx.object('0x6'),
+        ],
+      });
       }, 'Equal split payment created!');
     } else {
       const amounts = customSplitAmounts.split(',').map(a => convertSuiToMist(a.trim())).filter(a => a > 0);
-
+      
       if (participants.length !== amounts.length) {
         setError('Number of participants must match number of amounts');
         return;
@@ -1037,8 +1037,8 @@ export default function SuiConnApp() {
                       {split.title}
                     </div>
                     <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
-                      Total: {formatMistToSui(split.total_amount)} |
-                      Creator: {split.creatorUsername} |
+                      Total: {formatMistToSui(split.total_amount)} | 
+                      Creator: {split.creatorUsername} | 
                       Status: {split.status === 'completed' ? 'Completed' : 'Pending'}
                     </div>
                   </div>
@@ -1109,12 +1109,12 @@ export default function SuiConnApp() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button
+                      <button 
                         onClick={() => handleRespondToRequest(req.id, true)}
                         className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500">
                         Accept
                       </button>
-                      <button
+                      <button 
                         onClick={() => handleRespondToRequest(req.id, false)}
                         className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500">
                         Reject
@@ -1133,7 +1133,7 @@ export default function SuiConnApp() {
               {friends.length > 0 ? (
                 friends.map((friend) => {
                   // const friendHistory = friendTransactionHistory[friend.address] || [];
-
+                  
                   return (
                     <div key={friend.address} className="flex items-center justify-between p-3 bg-white rounded-lg shadow">
                       <div className="flex items-center space-x-2">
@@ -1152,7 +1152,7 @@ export default function SuiConnApp() {
                               // Using a light blue color for the Copy button
                               className="px-2 py-1 text-xs rounded-md bg-cyan-100 text-cyan-800 hover:bg-cyan-200 transition-colors inline-flex items-center justify-center"
                             />
-                          </div>
+                        </div>
                         </div>
                       </div>
                       <div className="flex space-x-1 flex-shrink-0">
@@ -1185,7 +1185,7 @@ export default function SuiConnApp() {
         return (
           <div className="space-y-6">
             {paymentAction === 'none' && (
-              <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
+            <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg">
                 <CardTitle className="text-xl font-bold text-white mb-4">Choose Payment Type</CardTitle>
                 <div className="grid grid-cols-1 gap-4">
                   <Button
@@ -1224,62 +1224,62 @@ export default function SuiConnApp() {
                   <div className="space-y-4">
                     <CardTitle className="text-xl font-bold text-white mb-4">Send Direct Payment</CardTitle>
                     <div className="flex items-center gap-3 mb-4 flex-wrap"> {/* Added flex-wrap */}
-                      <input
-                        type="text"
-                        value={paymentRecipient}
-                        onChange={(e) => setPaymentRecipient(e.target.value)}
-                        placeholder="Recipient username"
+                <input
+                  type="text"
+                  value={paymentRecipient}
+                  onChange={(e) => setPaymentRecipient(e.target.value)}
+                  placeholder="Recipient username"
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                        style={{ marginBottom: 0 }}
-                        disabled
-                      />
-                      <button
-                        onClick={() => openFriendSelector('payment')}
-                        className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                        disabled={friends.length === 0}
-                      >
-                        Select
-                      </button>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.000000001"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                  disabled
+                />
+                <button 
+                  onClick={() => openFriendSelector('payment')}
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                  disabled={friends.length === 0}
+                >
+                  Select
+                </button>
+              </div>
+              <input
+                type="number"
+                step="0.000000001"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
                       placeholder={`Amount in ${selectedCurrency}`}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                    />
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+              />
                     {selectedCurrency !== 'SUI' && (
                       <div className="text-xs text-gray-400 mt-1">
                         ≈ {formatCurrency(convertToSui(Number(paymentAmount), selectedCurrency), 'SUI')}
                       </div>
                     )}
-                    <input
-                      type="text"
-                      value={paymentMemo}
-                      onChange={(e) => setPaymentMemo(e.target.value)}
-                      placeholder="Memo (optional)"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                    />
-                    <button
-                      onClick={handleSendPayment}
-                      disabled={loading || !paymentRecipient || !paymentAmount}
+              <input
+                type="text"
+                value={paymentMemo}
+                onChange={(e) => setPaymentMemo(e.target.value)}
+                placeholder="Memo (optional)"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+              />
+              <button 
+                onClick={handleSendPayment} 
+                disabled={loading || !paymentRecipient || !paymentAmount}
                       className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 w-full"
                     >
-                      <svg
-                        className="inline-block mr-2 w-5 h-5"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
-                      {loading ? 'Sending...' : 'Send Payment'}
+                <svg
+                  className="inline-block mr-2 w-5 h-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+                {loading ? 'Sending...' : 'Send Payment'}
                     </button>
                   </div>
                 )}
@@ -1287,36 +1287,36 @@ export default function SuiConnApp() {
                 {/* Create Split Payment Form */}
                 {paymentAction === 'split' && (
                   <div className="space-y-4">
-                    <CardTitle className="text-xl font-bold text-white mb-4">Create Split Payment</CardTitle>
+              <CardTitle className="text-xl font-bold text-white mb-4">Create Split Payment</CardTitle>
 
-                    {/* Split Type Selector */}
-                    <div style={{ marginBottom: '20px' }}>
-                      <div className="text-sm font-medium text-white/90 mb-2">Split Type:</div>
+              {/* Split Type Selector */}
+              <div style={{ marginBottom: '20px' }}>
+                <div className="text-sm font-medium text-white/90 mb-2">Split Type:</div>
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}> {/* Added flexWrap */}
-                        <button
-                          onClick={() => setSplitType('equal')}
-                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'equal' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
-                          style={{ flex: 1 }}
-                        >
-                          Equal Split
-                        </button>
-                        <button
-                          onClick={() => setSplitType('custom')}
-                          className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'custom' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
-                          style={{ flex: 1 }}
-                        >
-                          Custom Split
-                        </button>
-                      </div>
-                    </div>
+                  <button
+                    onClick={() => setSplitType('equal')}
+                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'equal' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                    style={{ flex: 1 }}
+                  >
+                    Equal Split
+                  </button>
+                  <button
+                    onClick={() => setSplitType('custom')}
+                    className={`px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 ${splitType === 'custom' ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-cyan-500 hover:text-white'}`}
+                    style={{ flex: 1 }}
+                  >
+                    Custom Split
+                  </button>
+                </div>
+              </div>
 
-                    <input
-                      type="text"
-                      value={splitTitle}
-                      onChange={(e) => setSplitTitle(e.target.value)}
-                      placeholder="Split title (e.g., Dinner bill)"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                    />
+              <input
+                type="text"
+                value={splitTitle}
+                onChange={(e) => setSplitTitle(e.target.value)}
+                placeholder="Split title (e.g., Dinner bill)"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+              />
 
                     {/* Add recipient selection */}
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}> {/* Added flexWrap */}
@@ -1370,24 +1370,24 @@ export default function SuiConnApp() {
                       <div className="text-sm text-gray-400 mb-4">Please select a recipient first to choose participants.</div>
                     )}
 
-                    {splitType === 'equal' ? (
-                      <input
-                        type="number"
-                        step="0.000000001"
-                        value={splitAmount}
-                        onChange={(e) => setSplitAmount(e.target.value)}
+              {splitType === 'equal' ? (
+                <input
+                  type="number"
+                  step="0.000000001"
+                  value={splitAmount}
+                  onChange={(e) => setSplitAmount(e.target.value)}
                         placeholder={`Total amount in ${selectedCurrency}`}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={customSplitAmounts}
-                        onChange={(e) => setCustomSplitAmounts(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={customSplitAmounts}
+                  onChange={(e) => setCustomSplitAmounts(e.target.value)}
                         placeholder={`Amounts in ${selectedCurrency} (comma-separated, e.g., 0.1,0.2,0.3)`}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
-                      />
-                    )}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
+                />
+              )}
 
                     {/* Add deadline input */}
                     <input
@@ -1419,22 +1419,22 @@ export default function SuiConnApp() {
                     {batchPayments.map((batch, index) => (
                       <div key={index} className="space-y-3 mb-4 p-4 bg-white/5 border border-white/10 rounded-xl">
                         <div className="flex items-center gap-3 flex-wrap"> {/* Added flex-wrap */}
-                          <input
-                            type="text"
+                <input
+                  type="text"
                             value={batch.recipient}
                             onChange={(e) => updateBatchPayment(index, 'recipient', e.target.value)}
                             placeholder="Recipient username"
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 cursor-not-allowed"
                             disabled
-                          />
-                          <button
+                />
+                <button 
                             onClick={() => openFriendSelector('batch')}
-                            className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
-                            disabled={friends.length === 0}
-                          >
-                            Select
-                          </button>
-                        </div>
+                  className="px-4 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 flex-shrink-0"
+                  disabled={friends.length === 0}
+                >
+                  Select
+                </button>
+              </div>
                         <div>
                           <div className="text-sm text-gray-300 mb-2">Amount in {selectedCurrency}</div>
                           <input
@@ -1459,12 +1459,12 @@ export default function SuiConnApp() {
                           className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
                         />
                         {batchPayments.length > 1 && (
-                          <button
+              <button 
                             onClick={() => removeBatchPaymentRow(index)}
                             className="px-3 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-rose-600 to-pink-700 text-white hover:from-rose-500 hover:to-pink-600 shadow-lg shadow-rose-500/30 border-rose-500 w-full mt-2"
                           >
                             Remove Payment
-                          </button>
+              </button>
                         )}
                       </div>
                     ))}
@@ -1483,7 +1483,7 @@ export default function SuiConnApp() {
                     </button>
                   </div>
                 )}
-              </Card>
+            </Card>
             )}
           </div>
         );
@@ -1500,47 +1500,47 @@ export default function SuiConnApp() {
                   const isCreator = split.creator === account?.address;
 
                   if (!currentUserParticipant && !isCreator) return null; // Only show splits user is involved in
-
+                  
                   return (
                     <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-4 shadow-md mb-4 space-y-3">
                       <div style={{ fontWeight: '600', color: '#fff', fontSize: '18px' }}>
-                        {split.title}
-                      </div>
-                      <div className="text-sm text-gray-300">
+                          {split.title}
+                        </div>
+                        <div className="text-sm text-gray-300">
                         Total Amount: {formatMistToSui(split.total_amount)}
-                      </div>
-                      <div className="text-sm text-gray-300">
+                        </div>
+                        <div className="text-sm text-gray-300">
                         Creator: {split.creatorUsername} ({formatAddress(split.creator)})
-                      </div>
+                        </div>
 
                       {isCreator && (
                         <div className="text-sm text-gray-300">
                           Status: {split.is_completed ? 'Completed' : 'Pending Collection'}
-                        </div>
-                      )}
+                          </div>
+                        )}
 
                       {currentUserParticipant && !isCreator && (
                         <div className="text-sm text-gray-300 space-y-2">
                           <div>
                             Your Share: {formatMistToSui(currentUserParticipant.amount_owed)}
-                          </div>
+                        </div>
                           <div>
                             Status: {currentUserParticipant.has_paid ? 'Paid' : 'Outstanding'}
-                          </div>
-
+                        </div>
+                        
                           {!currentUserParticipant.has_paid && !split.is_completed && (
-                            <button
+                          <button 
                               onClick={() => handlePaySplitAmount(split.id, currentUserParticipant.amount_owed)}
                               disabled={loading}
                               className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-500 hover:to-teal-600 shadow-lg shadow-emerald-500/30 border-emerald-500 mt-2 w-full"
                             >
                               {loading ? 'Paying...' : 'Pay Your Share'}
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="text-sm text-gray-300 mt-2">
+                          </button>
+                        )}
+                          </div>
+                        )}
+                        
+                          <div className="text-sm text-gray-300 mt-2">
                         Participants:
                         <ul className="list-disc list-inside ml-2">
                           {split.participants.map((p, pIndex) => (
@@ -1571,26 +1571,26 @@ export default function SuiConnApp() {
                   <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                     <div className="font-medium text-white mb-1">
                       {record.fromUsername} - {formatMistToSui(record.amount)}
-                    </div>
+                      </div>
                     <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
                       From: {record.fromUsername} ({formatAddress(record.from)}) to {record.toUsername} ({formatAddress(record.to)})
-                    </div>
-                    {record.memo && (
-                      <div className="text-xs text-gray-300 mt-1">
-                        Memo: {record.memo}
                       </div>
-                    )}
-                  </div>
+                      {record.memo && (
+                      <div className="text-xs text-gray-300 mt-1">
+                          Memo: {record.memo}
+                        </div>
+                      )}
+                      </div>
                 ))
               ) : (
                 <div className="text-white/70 text-center py-4">No transactions found</div>
               )}
               {paymentHistory.length > 3 && (
-                <button
+                  <button
                   onClick={() => setActiveTab('history')}
                   className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 border bg-gradient-to-r from-cyan-600 to-blue-700 text-white hover:from-cyan-500 hover:to-blue-600 shadow-lg shadow-cyan-500/30 border-cyan-500 mt-4">
                   View All Transactions
-                </button>
+                  </button>
               )}
             </Card>
           </div>
@@ -1603,9 +1603,9 @@ export default function SuiConnApp() {
 
   const renderHistoryDialog = () => {
     if (!selectedFriend || !historyDialogOpen) return null;
-
+    
     const friendHistory = friendTransactionHistory[selectedFriend.address] || [];
-
+    
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 shadow-lg max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
@@ -1686,7 +1686,7 @@ export default function SuiConnApp() {
             </div>
           </div>
         )}
-
+        
         {success && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border border-green-400/30 animate-fade-in-up">
             <div className="flex items-center gap-2">
@@ -1698,7 +1698,7 @@ export default function SuiConnApp() {
             </div>
           </div>
         )}
-
+        
         {loading && (
           <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500/90 backdrop-blur-lg text-white px-6 py-3 rounded-2xl shadow-lg border border-blue-400/30 animate-fade-in-up">
             <div className="flex items-center gap-3">
@@ -1736,7 +1736,7 @@ export default function SuiConnApp() {
                       <span className="text-sm font-medium text-indigo-300">
                         {friend.username.charAt(0).toUpperCase()}
                       </span>
-                    </div>
+                  </div>
                     <div>
                       <div className="text-white font-medium">{friend.username}</div>
                       <div className="text-sm text-gray-400">{formatAddress(friend.address)}</div>

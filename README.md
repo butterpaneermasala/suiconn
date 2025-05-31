@@ -1,135 +1,144 @@
-text
-# suiconn
+# SuiConn - Decentralized Payment Application on Sui
 
-**suiconn** is a decentralized application (DApp) built on the Sui blockchain that enables users to manage friend lists and send payments to friends. It combines a Move smart contract for secure on-chain logic with a modern React frontend for a seamless user experience.
+SuiConn is a decentralized social payment platform on the Sui blockchain that makes managing shared expenses with friends effortless. It combines the security of blockchain technology with user-friendly features like split payments, batch transfers, and real-time currency conversion. Whether you're splitting a dinner bill or sending multiple payments, SuiConn streamlines the process while maintaining transparency and security.
 
----
+The platform offers a comprehensive suite of payment features, including direct transfers, equal or custom split payments with deadlines, and efficient batch payments to multiple recipients. With support for multiple currencies and real-time exchange rates, users can easily track and send payments in their preferred currency. The built-in friend management system and transaction history make it simple to maintain your payment network and track all your financial interactions.
+
+SuiConn's modern interface and seamless wallet integration ensure a smooth user experience, while its decentralized architecture guarantees the security and immutability of all transactions. Perfect for both personal and group financial management, SuiConn brings the power of blockchain payments to everyday social interactions.
 
 ## 🚀 Features
 
-- **Friend Management:** Add, view, and remove friends from your personal list.
-- **Payment System:** Send SUI tokens to individual friends or multiple friends at once.
-- **Payment History:** Track all payments sent to friends, with memos and timestamps.
-- **Batch Payments:** Send payments to multiple friends in a single transaction.
-- **Real-Time Updates:** Automatic refresh of friend lists and payment status.
+### Core Features
+- **User Management:**
+  - Unique username registration linked to Sui address
+  - Profile management with transaction statistics
+  - Friend request system with accept/reject functionality
+  - Maximum 500 friends per user
 
----
+### Payment Features
+- **Direct Payments:**
+  - Send SUI tokens to friends with optional memos
+  - Real-time transaction status updates
+  - Comprehensive payment history tracking
+
+- **Split Payments:**
+  - Create equal or custom split payments
+  - Set payment deadlines
+  - Track individual contributions
+  - Automatic completion when all payments are received
+  - Support for up to 50 participants per split
+
+- **Batch Payments:**
+  - Send multiple payments in a single transaction
+  - Custom amounts and memos for each recipient
+  - Efficient gas usage through batch processing
+  - Support for up to 50 recipients per batch
+
+### Currency Features
+- **Multi-Currency Support:**
+  - Real-time conversion between SUI and major currencies
+  - Supported currencies: USD, EUR, INR, GBP, JPY, CAD, AUD, SGD, ZAR, BRL
+  - Live exchange rates from CoinGecko
+  - Display and send payments in preferred currency
+
+### Security & Privacy
+- **Decentralized Architecture:**
+  - On-chain transaction processing
+  - Immutable payment records
+  - Secure friend list management
+  - Private payment history
+
+### User Interface
+- **Modern Design:**
+  - Responsive layout with Tailwind CSS
+  - Intuitive payment flows
+  - Real-time balance updates
+  - Transaction status notifications
+  - Friend management interface
+  - Payment history visualization
 
 ## 🏗️ Architecture
 
-### Move Smart Contract (`friend_list.move`)
+### Smart Contract (`suiconn.move`)
+- **Core Structures:**
+  - `PlatformRegistry`: Main platform state management
+  - `UserProfile`: User information and statistics
+  - `FriendRequest`: Friend request management
+  - `SplitPayment`: Split payment details and tracking
+  - `PaymentRecord`: Transaction history records
+  - `BatchPayment`: Batch payment management
 
-- **FriendListRegistry:** Tracks all user friend lists.
-- **FriendList:** Each user's friend list with payment history.
-- **Friend:** Friend's address, name, and timestamp.
-- **PaymentRecord:** Payment details (amount, memo, timestamp).
-
-#### Key Functions
-
-- `create()`: Create a new friend list.
-- `add_friend()`: Add a friend.
-- `remove_friend()`: Remove a friend.
-- `pay_friend()`: Send payment to a friend.
-- `batch_pay_friends_simple()`: Batch payments.
-- **View functions** for querying friend/payment data.
-
-#### Limits
-
-- Max 100 friends per list.
-- Max 50 characters for friend names.
-- Max 200 characters for payment memos.
-- Max 20 recipients per batch payment.
-
-### Frontend (`FriendList.tsx`)
-
-- Built with React + TypeScript.
-- Wallet connection via Suiet Wallet Kit.
-- Real-time blockchain data fetching.
-- Transaction signing and execution.
-- Error handling and loading states.
-
----
+### Frontend (`React + TypeScript`)
+- **Key Components:**
+  - Wallet integration via Suiet Wallet Kit
+  - Real-time blockchain data fetching
+  - Currency conversion and formatting
+  - Transaction signing and execution
+  - Error handling and loading states
+  - Responsive UI components
 
 ## ⚙️ Prerequisites
 
-- [Node.js](https://nodejs.org/) (v16+)
-- npm or yarn
-- [Sui CLI](https://docs.sui.io/build/install) (for contract deployment)
-- [sui Wallet](any) any sui wallet browser extension
-
----
+- Node.js (v18 or higher recommended)
+- npm, yarn, or pnpm
+- Sui Wallet extension (e.g., Suiet) with testnet funds
+- Sui CLI (for contract deployment)
 
 ## 🛠️ Installation
 
-### 1. Clone the Repository
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/butterpaneermasala/suiconn.git
+   cd suiconn/suiconn
+   ```
 
-git clone https://github.com/butterpaneermasala/suiconn.git
-cd suiconn
-
-text
-
-### 2. Install Dependencies
-
-npm install
-
-or
-yarn install
-
-text
-
----
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
 ## 🚀 Deployment
 
 ### Smart Contract
-
-**Compile:**
+```bash
+# Compile
 sui move build
 
-text
-
-**Deploy to Devnet:**
+# Deploy to Testnet
 sui client publish --gas-budget 100000000
-
-text
-
-> **Note:** Save the `PACKAGE_ID` and `REGISTRY_OBJECT_ID` from the deployment output.
+```
 
 ### Frontend
+1. Update contract addresses in `src/pages/suiconn.tsx`:
+   ```typescript
+   const PACKAGE_ID = 'YOUR_DEPLOYED_PACKAGE_ID';
+   const REGISTRY_OBJECT_ID = 'YOUR_REGISTRY_OBJECT_ID';
+   const ACCESS_CONTROL_ID = 'YOUR_ACCESS_CONTROL_ID';
+   ```
 
-Update these constants in your frontend code:
-const PACKAGE_ID = 'YOUR_DEPLOYED_PACKAGE_ID';
-const REGISTRY_OBJECT_ID = 'YOUR_REGISTRY_OBJECT_ID';
-
-text
-
----
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
 ## 🧑‍💻 Usage
 
 ### Getting Started
+1. Connect your Sui wallet
+2. Register with a unique username
+3. Add friends using their usernames
+4. Start sending payments or creating split payments
 
-1. **Connect Wallet:** Click "Connect" and approve any sui Wallet.
-2. **Create Friend List:** If new, click "Create Friend List."
-3. **Add Friends:** Enter friend's Sui address and name, then "Add Friend."
-
-### Managing Friends
-
-- **Add:** Provide Sui address and display name.
-- **Remove:** Click "Remove" next to a friend.
-- **View:** Friend list updates automatically.
-
-### Sending Payments
-
-- Payment logic is supported by the contract.
-- To enable payments in the frontend, add fields for amount/memo and call `pay_friend` or `batch_pay_friends_simple`.
-
----
+### Key Operations
+- **Direct Payments:** Select a friend, enter amount and optional memo
+- **Split Payments:** Create with title, total amount, and participants
+- **Batch Payments:** Add multiple recipients with individual amounts
+- **Currency Conversion:** Select preferred currency for viewing and sending
 
 ## 🛡️ Error Codes
 
-| Code | Meaning |
-|------|---------|
+| Code | Description |
+|------|-------------|
 | 0 | Friend list already exists |
 | 1 | Not the owner of friend list |
 | 2 | Friend already added |
@@ -141,89 +150,62 @@ text
 | 8 | Batch array mismatch |
 | 9 | Empty batch |
 | 10 | Max batch size exceeded |
-
----
-
-## 📡 Network Configuration
-
-- Default: Sui Devnet (`https://fullnode.devnet.sui.io:443`)
-- To use Mainnet, update the RPC URL in your frontend.
-
----
+| 11 | Username taken |
+| 12 | User not found |
+| 13 | Request already exists |
+| 14 | Request not found |
+| 15 | Invalid request status |
+| 20 | Split payment not found |
+| 21 | Already paid |
+| 22 | Invalid split amount |
+| 25 | Not friends |
+| 26 | Self friend request |
+| 29 | Zero participants |
+| 30 | Overpayment |
+| 33 | Invalid username characters |
+| 34 | Username too short |
+| 35 | Invalid memo characters |
 
 ## 🔒 Security
 
-- Always verify friend addresses before adding.
-- Double-check payment amounts and recipients.
-- Friend lists are private and require ownership checks.
-- Payment records are permanently on-chain.
-
----
+- All transactions are processed on-chain
+- Friend lists are private and require ownership checks
+- Payment records are permanently stored on the blockchain
+- Username and address validation
+- Rate limiting on friend requests
+- Payment deadline enforcement
 
 ## 🚧 Limitations
 
-- Max 100 friends per list.
-- Name: 50 chars; Memo: 200 chars.
-- Batch payments: max 20 recipients.
-- No friend list sharing or friend request system (yet).
-
----
+- Max 500 friends per user
+- Username: 3-30 characters
+- Memo: 200 characters max
+- Batch/Split payments: max 50 participants
+- Payment amounts must be positive
 
 ## 🤝 Contributing
 
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes (+ tests if possible).
-4. Submit a pull request.
-
----
-
-## 🛠️ Development
-
-### Run Locally
-
-npm run dev
-
-or
-yarn dev
-
-text
-
-### Build for Production
-
-npm run build
-
-or
-yarn build
-
-text
-
-### Test Smart Contract
-
-sui move test
-
-text
-
----
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## 🗺️ Roadmap
 
-- Frontend payment interface.
-- Friend request/approval system.
-- Group and scheduled payments.
-- Social features (recommendations).
-- Mobile version.
-- DeFi protocol integrations.
-
----
+- Enhanced social features
+- Mobile application
+- DeFi protocol integrations
+- Advanced group payment management
+- Payment analytics and insights
+- Cross-chain compatibility
 
 ## 🆘 Support
 
-- Check browser console for errors.
-- Ensure your wallet has SUI for gas.
-- Verify contract addresses and network.
-- For issues, open a GitHub issue or PR.
+- Check browser console for errors
+- Ensure wallet has sufficient SUI for gas
+- Verify contract addresses and network
+- For issues, open a GitHub issue
 
 ---
 
-**suiconn** is open source and welcomes your contributions and feedback!
+**SuiConn** is open source and welcomes your contributions and feedback!

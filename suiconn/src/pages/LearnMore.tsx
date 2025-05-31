@@ -47,7 +47,7 @@ const sections = [
             <h4>Batch Payments</h4>
             <p>Save time by sending payments to multiple friends simultaneously in a single transaction.</p>
           </div>
-           <div className="feature-item">
+          <div className="feature-item">
             <h4>Transaction History</h4>
             <p>Keep track of all your financial activity within SuiConn with a detailed history of every transaction.</p>
           </div>
