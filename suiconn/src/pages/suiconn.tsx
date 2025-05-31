@@ -739,7 +739,7 @@ export default function SuiConnApp() {
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
               placeholder={`Amount in ${selectedCurrency}`}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
             />
             {selectedCurrency !== 'SUI' && (
               <div className="text-xs text-gray-400 mt-1">
@@ -1246,9 +1246,14 @@ export default function SuiConnApp() {
                       step="0.000000001"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="Amount in SUI (e.g., 0.001)"
+                      placeholder={`Amount in ${selectedCurrency}`}
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                     />
+                    {selectedCurrency !== 'SUI' && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        ≈ {formatCurrency(convertToSui(Number(paymentAmount), selectedCurrency), 'SUI')}
+                      </div>
+                    )}
                     <input
                       type="text"
                       value={paymentMemo}
@@ -1371,7 +1376,7 @@ export default function SuiConnApp() {
                         step="0.000000001"
                         value={splitAmount}
                         onChange={(e) => setSplitAmount(e.target.value)}
-                        placeholder="Total amount in SUI"
+                        placeholder={`Total amount in ${selectedCurrency}`}
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                       />
                     ) : (
@@ -1379,7 +1384,7 @@ export default function SuiConnApp() {
                         type="text"
                         value={customSplitAmounts}
                         onChange={(e) => setCustomSplitAmounts(e.target.value)}
-                        placeholder="Amounts in SUI (comma-separated, e.g., 0.1,0.2,0.3)"
+                        placeholder={`Amounts in ${selectedCurrency} (comma-separated, e.g., 0.1,0.2,0.3)`}
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                       />
                     )}
