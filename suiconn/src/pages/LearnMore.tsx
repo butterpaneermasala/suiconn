@@ -51,6 +51,10 @@ const sections = [
             <h4>Transaction History</h4>
             <p>Keep track of all your financial activity within SuiConn with a detailed history of every transaction.</p>
           </div>
+          <div className="feature-item">
+            <h4>Multi-Currency Support</h4>
+            <p>View and send payments in multiple currencies (USD, EUR, INR, GBP, JPY, CAD, AUD, SGD, ZAR, BRL) with real-time conversion rates from CoinGecko.</p>
+          </div>
         </div>
       </>
     ),

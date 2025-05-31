@@ -26,6 +26,7 @@ The frontend is a single-page application built with React and TypeScript using 
 *   **Split Payments:** Users can create split payments for a group of participants, specifying a total amount to be divided equally or custom amounts for each person. The creator can also be included as a participant. Participants can then pay their share individually.
 *   **Batch Payments to Multiple Friends:** Provides a convenient way to send direct payments to multiple friends in a single transaction.
 *   **Transaction History View:** Users can view a history of their sent and received payments, including details like sender, recipient, amount, memo, and payment type.
+*   **Multi-Currency Support:** Users can view and send payments in multiple currencies (USD, EUR, INR, GBP, JPY, CAD, AUD, SGD, ZAR, BRL) with real-time conversion rates from CoinGecko.
 *   **Integration with Suiet Wallet Kit:** Seamlessly connects with Suiet Wallet for handling user authentication and transaction signing.
 *   **Modern UI with Tailwind CSS:** Features a responsive and visually appealing user interface built using Tailwind CSS.
 

@@ -395,6 +395,12 @@ const Landing = () => {
               description="Set deadlines for split payment contributions and easily monitor payment status."
               delay={0.6}
             />
+            <FeatureCard
+              icon={Globe}
+              title="Multi-Currency Support"
+              description="View and send payments in multiple currencies with real-time conversion rates from CoinGecko."
+              delay={0.7}
+            />
           </div>
 
           {/* Stats Section */}
