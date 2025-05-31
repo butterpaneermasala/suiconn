@@ -1084,8 +1084,7 @@ export default function SuiConnApp() {
                             <CopyButton
                               text={friend.address}
                               onCopy={setSuccess}
-                              // Override default white text for visibility on light background
-                              className="px-2 py-1 text-xs rounded-lg bg-blue-100 text-blue-800 hover:bg-blue-200 hover:text-blue-900"
+                              className="px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                             />
                           </div>
                         </div>
