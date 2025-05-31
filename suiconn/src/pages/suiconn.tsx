@@ -1081,10 +1081,11 @@ export default function SuiConnApp() {
                           <p className="font-medium text-gray-900">{friend.username}</p>
                           <div className="flex items-center gap-1 flex-wrap">
                             <p className="text-xs text-gray-500" style={{ wordBreak: 'break-all' }}>{formatAddress(friend.address)}</p>
-                            <CopyButton
-                              text={friend.address}
+                            <CopyButton 
+                              text={friend.address} 
                               onCopy={setSuccess}
-                              className="px-2 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                              // Using a light blue color for the Copy button
+                              className="px-2 py-1 text-xs rounded-md bg-cyan-100 text-cyan-800 hover:bg-cyan-200 transition-colors inline-flex items-center justify-center"
                             />
                           </div>
                         </div>
