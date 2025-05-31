@@ -1743,7 +1743,7 @@ const CopyButton = ({ text, onCopy, className }: { text: string, onCopy: (messag
       navigator.clipboard.writeText(text);
       onCopy('Address copied to clipboard!');
     }}
-    className={`px-2 py-1 text-xs rounded-lg bg-white/10 text-white hover:bg-white/20 ${className}`}
+    className={`px-2 py-1 text-xs rounded-md bg-cyan-100 text-cyan-800 hover:bg-cyan-200 transition-colors inline-flex items-center justify-center ${className || ''}`}
   >
     Copy
   </button>
