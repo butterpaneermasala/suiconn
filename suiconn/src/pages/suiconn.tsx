@@ -1037,7 +1037,12 @@ export default function SuiConnApp() {
                       {split.title}
                     </div>
                     <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
-                      Total: {formatMistToSui(split.total_amount)} | 
+                      Total: {formatMistToSui(split.total_amount)}
+                      {selectedCurrency !== 'SUI' && (
+                        <span className="ml-2">
+                          ({formatCurrency(convertBalance(Number(split.total_amount) / Number(MIST_PER_SUI), selectedCurrency), selectedCurrency)})
+                        </span>
+                      )} | 
                       Creator: {split.creatorUsername} | 
                       Status: {split.status === 'completed' ? 'Completed' : 'Pending'}
                     </div>
@@ -1376,7 +1381,7 @@ export default function SuiConnApp() {
                   step="0.000000001"
                   value={splitAmount}
                   onChange={(e) => setSplitAmount(e.target.value)}
-                        placeholder={`Total amount in ${selectedCurrency}`}
+                  placeholder={`Amount in ${selectedCurrency}`}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                 />
               ) : (
@@ -1384,9 +1389,16 @@ export default function SuiConnApp() {
                   type="text"
                   value={customSplitAmounts}
                   onChange={(e) => setCustomSplitAmounts(e.target.value)}
-                        placeholder={`Amounts in ${selectedCurrency} (comma-separated, e.g., 0.1,0.2,0.3)`}
+                  placeholder={`Enter amounts in ${selectedCurrency} separated by commas`}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 mb-4"
                 />
+              )}
+              {selectedCurrency !== 'SUI' && (
+                <div className="text-xs text-gray-400 mt-1">
+                  ≈ {customSplitAmounts.split(',').map(amount => 
+                    formatCurrency(convertToSui(Number(amount.trim()), selectedCurrency), 'SUI')
+                  ).join(', ')}
+                </div>
               )}
 
                     {/* Add deadline input */}
@@ -1508,6 +1520,11 @@ export default function SuiConnApp() {
                         </div>
                         <div className="text-sm text-gray-300">
                         Total Amount: {formatMistToSui(split.total_amount)}
+                        {selectedCurrency !== 'SUI' && (
+                          <span className="ml-2">
+                            ({formatCurrency(convertBalance(Number(split.total_amount) / Number(MIST_PER_SUI), selectedCurrency), selectedCurrency)})
+                          </span>
+                        )}
                         </div>
                         <div className="text-sm text-gray-300">
                         Creator: {split.creatorUsername} ({formatAddress(split.creator)})
@@ -1545,7 +1562,12 @@ export default function SuiConnApp() {
                         <ul className="list-disc list-inside ml-2">
                           {split.participants.map((p, pIndex) => (
                             <li key={pIndex} className="text-xs">
-                              {p.username} ({formatAddress(p.address)}): {formatMistToSui(p.amount_owed)} - {p.has_paid ? 'Paid' : 'Outstanding'}
+                              {p.username} ({formatAddress(p.address)}): {formatMistToSui(p.amount_owed)}
+                              {selectedCurrency !== 'SUI' && (
+                                <span className="ml-1">
+                                  ({formatCurrency(convertBalance(Number(p.amount_owed) / Number(MIST_PER_SUI), selectedCurrency), selectedCurrency)})
+                                </span>
+                              )} - {p.has_paid ? 'Paid' : 'Outstanding'}
                             </li>
                           ))}
                         </ul>
@@ -1571,16 +1593,21 @@ export default function SuiConnApp() {
                   <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                     <div className="font-medium text-white mb-1">
                       {record.fromUsername} - {formatMistToSui(record.amount)}
-                      </div>
+                      {selectedCurrency !== 'SUI' && (
+                        <span className="text-sm text-gray-300 ml-2">
+                          ({formatCurrency(convertBalance(Number(record.amount) / Number(MIST_PER_SUI), selectedCurrency), selectedCurrency)})
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
                       From: {record.fromUsername} ({formatAddress(record.from)}) to {record.toUsername} ({formatAddress(record.to)})
-                      </div>
-                      {record.memo && (
+                    </div>
+                    {record.memo && (
                       <div className="text-xs text-gray-300 mt-1">
-                          Memo: {record.memo}
-                        </div>
-                      )}
+                        Memo: {record.memo}
                       </div>
+                    )}
+                  </div>
                 ))
               ) : (
                 <div className="text-white/70 text-center py-4">No transactions found</div>
@@ -1617,6 +1644,11 @@ export default function SuiConnApp() {
                 <div key={index} className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-3 shadow-md mb-3">
                   <div className="font-medium text-white mb-1">
                     {isOutgoing ? 'Sent' : 'Received'} - {formatMistToSui(record.amount)}
+                    {selectedCurrency !== 'SUI' && (
+                      <span className="text-sm text-gray-300 ml-2">
+                        ({formatCurrency(convertBalance(Number(record.amount) / Number(MIST_PER_SUI), selectedCurrency), selectedCurrency)})
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-300" style={{ wordBreak: 'break-all' }}>
                     {isOutgoing
